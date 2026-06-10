@@ -27,6 +27,11 @@ enum class KnownFormat : std::uint8_t
     Xml,
     Pdf,
     OpenApi,
+    Obj,
+    Stl,
+    Ply,
+    Xyz,
+    Vox,
 };
 
 [[nodiscard]] std::string_view formatName(KnownFormat format) noexcept;

@@ -42,6 +42,11 @@ std::string_view formatName(KnownFormat format) noexcept
     case KnownFormat::Xml:        return "xml";
     case KnownFormat::Pdf:        return "pdf";
     case KnownFormat::OpenApi:    return "openapi";
+    case KnownFormat::Obj:        return "obj";
+    case KnownFormat::Stl:        return "stl";
+    case KnownFormat::Ply:        return "ply";
+    case KnownFormat::Xyz:        return "xyz";
+    case KnownFormat::Vox:        return "vox";
     case KnownFormat::Unknown:
     default:                      return "unknown";
     }
@@ -55,6 +60,12 @@ KnownFormat identifyContent(std::string_view content) noexcept
     // Binary magic first -- it cannot be confused with any text probe.
     if (content.rfind("%PDF-", 0) == 0)
         return KnownFormat::Pdf;
+    if (content.rfind("VOX ", 0) == 0)
+        return KnownFormat::Vox;
+    if (content.rfind("ply", 0) == 0 && content.find("end_header") != std::string_view::npos)
+        return KnownFormat::Ply;
+    if (content.rfind("solid", 0) == 0 && contains(content, "facet"))
+        return KnownFormat::Stl;
 
     const std::size_t firstGlyph = content.find_first_not_of(" \t\r\n");
     if (firstGlyph == std::string_view::npos)
@@ -121,7 +132,7 @@ KnownFormat identifyExtension(std::string_view fileName) noexcept
         std::string_view extension;
         KnownFormat      format;
     };
-    static constexpr std::array<Mapping, 22> kMappings = {{
+    static constexpr std::array<Mapping, 28> kMappings = {{
         {"dot", KnownFormat::Dot},          {"gv", KnownFormat::Dot},
         {"mmd", KnownFormat::Mermaid},      {"mermaid", KnownFormat::Mermaid},
         {"graphml", KnownFormat::GraphMl},  {"puml", KnownFormat::PlantUml},
@@ -133,6 +144,9 @@ KnownFormat identifyExtension(std::string_view fileName) noexcept
         {"collapsed", KnownFormat::FlameGraph}, {"yaml", KnownFormat::Yaml},
         {"yml", KnownFormat::Yaml},         {"toml", KnownFormat::Toml},
         {"xml", KnownFormat::Xml},          {"pdf", KnownFormat::Pdf},
+        {"obj", KnownFormat::Obj},          {"stl", KnownFormat::Stl},
+        {"ply", KnownFormat::Ply},          {"xyz", KnownFormat::Xyz},
+        {"pts", KnownFormat::Xyz},          {"vox", KnownFormat::Vox},
     }};
     for (const auto &mapping : kMappings)
         if (ext == mapping.extension)
