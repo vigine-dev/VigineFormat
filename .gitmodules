@@ -4,3 +4,6 @@
 [submodule "external/tomlplusplus"]
 	path = external/tomlplusplus
 	url = https://github.com/vigine-dev/tomlplusplus.git
+[submodule "external/pdfio"]
+	path = external/pdfio
+	url = https://github.com/vigine-dev/pdfio.git

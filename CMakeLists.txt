@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(VigineFormat CXX)
+project(VigineFormat C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
@@ -10,6 +10,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(VIGINEFORMAT_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 option(VIGINEFORMAT_BUILD_TESTS "Build VigineFormat tests" ON)
+option(VIGINEFORMAT_WITH_PDF "Build the PDF backend (vendored pdfio + system zlib)" ON)
 
 if(NOT DEFINED CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type" FORCE)
@@ -22,6 +23,9 @@ endif()
 # header, so backends can be swapped without touching consumers.
 file(GLOB VIGINEFORMAT_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB VIGINEFORMAT_HEADERS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/include/vigine/format/*.h)
+if(NOT VIGINEFORMAT_WITH_PDF)
+    list(REMOVE_ITEM VIGINEFORMAT_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/pdfimporter.cpp)
+endif()
 
 add_library(VigineFormat STATIC ${VIGINEFORMAT_SOURCES} ${VIGINEFORMAT_HEADERS})
 add_library(VigineFormat::VigineFormat ALIAS VigineFormat)
@@ -33,6 +37,21 @@ target_include_directories(VigineFormat
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/tomlplusplus/include)
+
+# --- PDF backend ----------------------------------------------------------
+# pdfio is a small plain-C library with no CMake of its own: its sources
+# compile straight into a private static target. Needs only the system zlib.
+if(VIGINEFORMAT_WITH_PDF)
+    file(GLOB VIGINEFORMAT_PDFIO_SOURCES CONFIGURE_DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/pdfio/pdfio-*.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/pdfio/ttf.c)
+    add_library(vigineformat_pdfio STATIC ${VIGINEFORMAT_PDFIO_SOURCES})
+    find_package(ZLIB REQUIRED)
+    target_link_libraries(vigineformat_pdfio PRIVATE ZLIB::ZLIB)
+    target_include_directories(vigineformat_pdfio PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/pdfio)
+    set_target_properties(vigineformat_pdfio PROPERTIES C_STANDARD 11)
+    target_link_libraries(VigineFormat PRIVATE vigineformat_pdfio)
+endif()
 
 # --- tests ---------------------------------------------------------------
 if(VIGINEFORMAT_BUILD_TESTS)
