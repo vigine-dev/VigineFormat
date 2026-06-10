@@ -118,4 +118,35 @@ class SqlErdImporter final : public IDiagramImporter
     [[nodiscard]] std::optional<DiagramModel> import(std::string_view text) const override;
 };
 
+// YAML structured-data importer: the document becomes the same containment
+// tree the JSON importer builds -- the YAML is parsed and re-emitted as JSON
+// internally, so both data languages share one tree shape and one walker.
+class YamlTreeImporter final : public IDiagramImporter
+{
+  public:
+    [[nodiscard]] std::string formatName() const override { return "yaml"; }
+    [[nodiscard]] std::optional<DiagramModel> import(std::string_view text) const override;
+};
+
+// TOML structured-data importer: tables and arrays become nodes, each entry a
+// child joined by a parent->child edge, scalar leaves carry their value in the
+// label -- the same containment-tree shape as JSON and YAML.
+class TomlTreeImporter final : public IDiagramImporter
+{
+  public:
+    [[nodiscard]] std::string formatName() const override { return "toml"; }
+    [[nodiscard]] std::optional<DiagramModel> import(std::string_view text) const override;
+};
+
+// OpenAPI importer: the API surface as a graph -- the info.title at the root,
+// every path a node, every operation (GET/POST/...) a child labelled with the
+// method and its summary / operationId. Accepts both the JSON and the YAML
+// flavour of a spec (YAML is normalised internally).
+class OpenApiImporter final : public IDiagramImporter
+{
+  public:
+    [[nodiscard]] std::string formatName() const override { return "openapi"; }
+    [[nodiscard]] std::optional<DiagramModel> import(std::string_view text) const override;
+};
+
 } // namespace vigine::format

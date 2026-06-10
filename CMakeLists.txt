@@ -31,7 +31,8 @@ target_include_directories(VigineFormat
     # The vendored single-header JSON parser stays an implementation detail of
     # the .cpp files; consumers never see it.
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external)
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/tomlplusplus/include)
 
 # --- tests ---------------------------------------------------------------
 if(VIGINEFORMAT_BUILD_TESTS)

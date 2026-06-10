@@ -41,6 +41,7 @@ std::string_view formatName(KnownFormat format) noexcept
     case KnownFormat::Toml:       return "toml";
     case KnownFormat::Xml:        return "xml";
     case KnownFormat::Pdf:        return "pdf";
+    case KnownFormat::OpenApi:    return "openapi";
     case KnownFormat::Unknown:
     default:                      return "unknown";
     }
@@ -59,6 +60,12 @@ KnownFormat identifyContent(std::string_view content) noexcept
     if (firstGlyph == std::string_view::npos)
         return KnownFormat::Unknown;
     const char lead = content[firstGlyph];
+
+    // A schema-on-top wins over its carrier: an OpenAPI spec IS json or yaml,
+    // but the more specific verdict is the useful one.
+    if (contains(content, "\"openapi\"") || contains(content, "openapi:") ||
+        contains(content, "\"swagger\"") || contains(content, "swagger:"))
+        return KnownFormat::OpenApi;
 
     if (lead == '{' || lead == '[')
         return KnownFormat::Json;

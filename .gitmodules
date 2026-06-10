@@ -1,3 +1,6 @@
 [submodule "external/googletest"]
 	path = external/googletest
 	url = https://github.com/vigine-dev/googletest.git
+[submodule "external/tomlplusplus"]
+	path = external/tomlplusplus
+	url = https://github.com/vigine-dev/tomlplusplus.git
