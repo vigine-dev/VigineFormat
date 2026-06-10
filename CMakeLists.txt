@@ -23,8 +23,16 @@ endif()
 # header, so backends can be swapped without touching consumers.
 file(GLOB VIGINEFORMAT_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB VIGINEFORMAT_HEADERS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/include/vigine/format/*.h)
-if(NOT VIGINEFORMAT_WITH_PDF)
-    list(REMOVE_ITEM VIGINEFORMAT_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/pdfimporter.cpp)
+# zlib is the PDF backend's only system dependency. Probe it softly: hosts
+# without zlib (a bare Windows runner) still build the library, with
+# PdfImporter linking as an always-unsupported stub instead of dropping out
+# of the binary and breaking consumers at link time.
+if(VIGINEFORMAT_WITH_PDF)
+    find_package(ZLIB)
+    if(NOT ZLIB_FOUND)
+        message(STATUS "VigineFormat: zlib not found -- PDF backend disabled, PdfImporter reports unsupported")
+        set(VIGINEFORMAT_WITH_PDF OFF)
+    endif()
 endif()
 
 add_library(VigineFormat STATIC ${VIGINEFORMAT_SOURCES} ${VIGINEFORMAT_HEADERS})
@@ -46,11 +54,11 @@ if(VIGINEFORMAT_WITH_PDF)
         ${CMAKE_CURRENT_SOURCE_DIR}/external/pdfio/pdfio-*.c
         ${CMAKE_CURRENT_SOURCE_DIR}/external/pdfio/ttf.c)
     add_library(vigineformat_pdfio STATIC ${VIGINEFORMAT_PDFIO_SOURCES})
-    find_package(ZLIB REQUIRED)
     target_link_libraries(vigineformat_pdfio PRIVATE ZLIB::ZLIB)
     target_include_directories(vigineformat_pdfio PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/pdfio)
     set_target_properties(vigineformat_pdfio PROPERTIES C_STANDARD 11)
     target_link_libraries(VigineFormat PRIVATE vigineformat_pdfio)
+    target_compile_definitions(VigineFormat PRIVATE VIGINEFORMAT_HAS_PDFIO=1)
 endif()
 
 # --- tests ---------------------------------------------------------------
@@ -59,6 +67,9 @@ if(VIGINEFORMAT_BUILD_TESTS)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/googletest ${CMAKE_BINARY_DIR}/googletest EXCLUDE_FROM_ALL)
     enable_testing()
     file(GLOB VIGINEFORMAT_TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/test/*_test.cpp)
+    if(NOT VIGINEFORMAT_WITH_PDF)
+        list(REMOVE_ITEM VIGINEFORMAT_TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/test/pdf_test.cpp)
+    endif()
     add_executable(vigineformat-test ${VIGINEFORMAT_TEST_SOURCES})
     target_link_libraries(vigineformat-test PRIVATE VigineFormat gtest gtest_main)
     set_target_properties(vigineformat-test PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)

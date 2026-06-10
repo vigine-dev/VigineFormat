@@ -1,5 +1,26 @@
 #include "vigine/format/documentimporters.h"
 
+// Without the vendored pdfio backend (no zlib on the host) the importer
+// still links everywhere and simply reports "cannot parse"; consumers keep
+// one code path on every platform.
+#if !defined(VIGINEFORMAT_HAS_PDFIO)
+
+#include <optional>
+#include <string>
+
+namespace vigine::format
+{
+std::optional<DiagramModel> PdfImporter::importFile(const std::string &path,
+                                                    std::size_t maxRunsPerPage) const
+{
+    (void)path;
+    (void)maxRunsPerPage;
+    return std::nullopt;
+}
+} // namespace vigine::format
+
+#else
+
 #include <algorithm>
 #include <cstring>
 #include <string>
@@ -144,3 +165,5 @@ std::optional<DiagramModel> PdfImporter::importFile(const std::string &path,
 }
 
 } // namespace vigine::format
+
+#endif // VIGINEFORMAT_HAS_PDFIO
