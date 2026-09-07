@@ -1,12 +1,11 @@
-#include <gtest/gtest.h>
+#include "vigine/format/documentimporters.h"
 
 #include <algorithm>
 #include <cstdio>
 #include <fstream>
+#include <gtest/gtest.h>
 #include <string>
 #include <vector>
-
-#include "vigine/format/documentimporters.h"
 
 namespace
 {
@@ -16,8 +15,7 @@ using namespace vigine::format;
 // offsets are computed, not hand-counted, so the file stays valid.
 std::string buildTinyPdf(const std::string &text)
 {
-    const std::string content =
-        "BT /F1 12 Tf 72 712 Td (" + text + ") Tj ET\n";
+    const std::string content        = "BT /F1 12 Tf 72 712 Td (" + text + ") Tj ET\n";
     std::vector<std::string> objects = {
         "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
         "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
@@ -35,9 +33,9 @@ std::string buildTinyPdf(const std::string &text)
         offsets.push_back(pdf.size());
         pdf += object;
     }
-    const std::size_t xrefStart = pdf.size();
-    pdf += "xref\n0 " + std::to_string(objects.size() + 1) + "\n";
-    pdf += "0000000000 65535 f \n";
+    const std::size_t xrefStart  = pdf.size();
+    pdf                         += "xref\n0 " + std::to_string(objects.size() + 1) + "\n";
+    pdf                         += "0000000000 65535 f \n";
     for (const std::size_t offset : offsets)
     {
         char line[32];
@@ -58,7 +56,7 @@ TEST(PdfImporter, TinyDocumentBecomesPagesAndTextRuns)
     }
 
     PdfImporter pdf;
-    const auto  model = pdf.importFile(path);
+    const auto model = pdf.importFile(path);
     ASSERT_TRUE(model.has_value());
     const auto hasLabel = [&](const std::string &label) {
         return std::any_of(model->nodes.begin(), model->nodes.end(),

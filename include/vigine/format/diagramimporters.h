@@ -1,10 +1,10 @@
 #pragma once
 
+#include "vigine/format/diagrammodel.h"
+
 #include <optional>
 #include <string>
 #include <string_view>
-
-#include "vigine/format/diagrammodel.h"
 
 namespace vigine::format
 {

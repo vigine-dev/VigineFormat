@@ -23,7 +23,7 @@ struct Vec3f
 // library.
 struct PointCloud
 {
-    std::vector<Vec3f>                                points;
+    std::vector<Vec3f> points;
     std::vector<std::pair<std::uint32_t, std::uint32_t>> edges;
 };
 
@@ -32,8 +32,8 @@ struct PointCloud
 class IPointCloudImporter
 {
   public:
-    virtual ~IPointCloudImporter() = default;
-    [[nodiscard]] virtual std::string formatName() const = 0;
+    virtual ~IPointCloudImporter()                                                      = default;
+    [[nodiscard]] virtual std::string formatName() const                                = 0;
     [[nodiscard]] virtual std::optional<PointCloud> import(std::string_view data) const = 0;
 };
 

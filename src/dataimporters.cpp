@@ -13,9 +13,8 @@
 #include <ryml/rapidyaml.hpp>
 
 #define TOML_EXCEPTIONS 0
-#include <toml++/toml.hpp>
-
 #include <nlohmann/json.hpp>
+#include <toml++/toml.hpp>
 
 namespace vigine::format
 {
@@ -66,11 +65,9 @@ std::string yamlToJson(std::string_view text)
     static const RymlThrowingCallbacks kInstallOnce;
     try
     {
-        const ryml::Tree tree =
-            ryml::parse_in_arena(ryml::csubstr(text.data(), text.size()));
+        const ryml::Tree tree = ryml::parse_in_arena(ryml::csubstr(text.data(), text.size()));
         return ryml::emitrs_json<std::string>(tree);
-    }
-    catch (const std::exception &)
+    } catch (const std::exception &)
     {
         return {};
     }
@@ -106,14 +103,14 @@ std::optional<DiagramModel> TomlTreeImporter::import(std::string_view text) cons
     if (!parsed)
         return std::nullopt;
 
-    constexpr int         kMaxDepth = 12;
+    constexpr int kMaxDepth         = 12;
     constexpr std::size_t kMaxNodes = 256;
-    DiagramModel          model;
-    std::size_t           counter = 1; // root takes id n0
+    DiagramModel model;
+    std::size_t counter = 1; // root takes id n0
 
     const std::function<void(const toml::node &, const std::string &, const std::string &, int)>
-        walk = [&](const toml::node &node, const std::string &nodeId,
-                   const std::string &nodeLabel, int depth) {
+        walk = [&](const toml::node &node, const std::string &nodeId, const std::string &nodeLabel,
+                   int depth) {
             model.addNode(nodeId, nodeLabel);
             if (depth >= kMaxDepth || counter >= kMaxNodes)
                 return;
@@ -123,23 +120,22 @@ std::optional<DiagramModel> TomlTreeImporter::import(std::string_view text) cons
                 {
                     if (counter >= kMaxNodes)
                         break;
-                    const std::string childId    = "n" + std::to_string(counter++);
-                    std::string       childLabel = std::string(key.str());
+                    const std::string childId = "n" + std::to_string(counter++);
+                    std::string childLabel    = std::string(key.str());
                     if (!value.is_table() && !value.is_array())
                         childLabel += ": " + tomlScalarText(value);
                     walk(value, childId, truncateLabel(childLabel), depth + 1);
                     model.addEdge(nodeId, childId);
                 }
-            }
-            else if (const auto *array = node.as_array())
+            } else if (const auto *array = node.as_array())
             {
                 std::size_t index = 0;
                 for (const auto &element : *array)
                 {
                     if (counter >= kMaxNodes)
                         break;
-                    const std::string childId    = "n" + std::to_string(counter++);
-                    std::string       childLabel = "[" + std::to_string(index) + "]";
+                    const std::string childId = "n" + std::to_string(counter++);
+                    std::string childLabel    = "[" + std::to_string(index) + "]";
                     if (!element.is_table() && !element.is_array())
                         childLabel += " " + tomlScalarText(element);
                     walk(element, childId, truncateLabel(childLabel), depth + 1);
@@ -176,7 +172,7 @@ std::optional<DiagramModel> OpenApiImporter::import(std::string_view text) const
         return std::nullopt;
 
     DiagramModel model;
-    std::string  title = "api";
+    std::string title = "api";
     if (spec.contains("info") && spec["info"].is_object() && spec["info"].contains("title") &&
         spec["info"]["title"].is_string())
         title = spec["info"]["title"].get<std::string>();
@@ -201,8 +197,7 @@ std::optional<DiagramModel> OpenApiImporter::import(std::string_view text) const
             {
                 if (operation.contains("summary") && operation["summary"].is_string())
                     label += " " + operation["summary"].get<std::string>();
-                else if (operation.contains("operationId") &&
-                         operation["operationId"].is_string())
+                else if (operation.contains("operationId") && operation["operationId"].is_string())
                     label += " " + operation["operationId"].get<std::string>();
             }
             const std::string operationId = path + "#" + method;

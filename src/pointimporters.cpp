@@ -1,11 +1,8 @@
 #include "vigine/format/pointcloud.h"
 
-#include <array>
 #include <cctype>
 #include <charconv>
 #include <cstring>
-#include <sstream>
-#include <string>
 
 namespace vigine::format
 {
@@ -26,7 +23,8 @@ std::string_view trimView(std::string_view text)
 }
 
 // Walks `text` line by line without allocating.
-template <typename Fn> void forEachLine(std::string_view text, Fn &&fn)
+template <typename Fn>
+void forEachLine(std::string_view text, Fn &&fn)
 {
     std::size_t start = 0;
     while (start <= text.size())
@@ -44,7 +42,7 @@ template <typename Fn> void forEachLine(std::string_view text, Fn &&fn)
 std::vector<std::string_view> splitWhitespace(std::string_view line)
 {
     std::vector<std::string_view> tokens;
-    std::size_t                   index = 0;
+    std::size_t index = 0;
     while (index < line.size())
     {
         while (index < line.size() && std::isspace(static_cast<unsigned char>(line[index])) != 0)
@@ -101,7 +99,7 @@ std::uint32_t readU32LE(const unsigned char *bytes)
 float readF32LE(const unsigned char *bytes)
 {
     const std::uint32_t raw = readU32LE(bytes);
-    float               out;
+    float out;
     std::memcpy(&out, &raw, sizeof(out));
     return out;
 }
@@ -120,8 +118,7 @@ std::optional<PointCloud> ObjImporter::import(std::string_view data) const
             if (parseFloat(tokens[1], point.x) && parseFloat(tokens[2], point.y) &&
                 parseFloat(tokens[3], point.z))
                 cloud.points.push_back(point);
-        }
-        else if (tokens.size() >= 3 && tokens[0] == "f")
+        } else if (tokens.size() >= 3 && tokens[0] == "f")
         {
             std::vector<std::uint32_t> polygon;
             polygon.reserve(tokens.size() - 1);
@@ -150,7 +147,7 @@ std::optional<PointCloud> StlImporter::import(std::string_view data) const
     // ASCII flavour: "solid" plus at least one "facet".
     if (data.rfind("solid", 0) == 0 && data.find("facet") != std::string_view::npos)
     {
-        PointCloud                 cloud;
+        PointCloud cloud;
         std::vector<std::uint32_t> triangle;
         forEachLine(data, [&](std::string_view line) {
             if (cloud.points.size() >= kMaxPoints)
@@ -180,10 +177,9 @@ std::optional<PointCloud> StlImporter::import(std::string_view data) const
     // Binary flavour: 80-byte header, uint32 count, 50 bytes per triangle.
     if (data.size() < 84)
         return std::nullopt;
-    const auto *bytes = reinterpret_cast<const unsigned char *>(data.data());
+    const auto *bytes                 = reinterpret_cast<const unsigned char *>(data.data());
     const std::uint32_t triangleCount = readU32LE(bytes + 80);
-    if (triangleCount == 0 ||
-        data.size() < 84 + static_cast<std::size_t>(triangleCount) * 50)
+    if (triangleCount == 0 || data.size() < 84 + static_cast<std::size_t>(triangleCount) * 50)
         return std::nullopt;
 
     PointCloud cloud;
@@ -223,11 +219,11 @@ std::optional<PointCloud> PlyImporter::import(std::string_view data) const
     // vertex properties.
     std::size_t vertexCount = 0;
     std::size_t faceCount   = 0;
-    int         xSlot = -1, ySlot = -1, zSlot = -1;
-    int         propertySlot   = 0;
-    bool        inVertexElement = false;
-    bool        vertexFirst     = true;
-    bool        sawFaceElement  = false;
+    int xSlot = -1, ySlot = -1, zSlot = -1;
+    int propertySlot     = 0;
+    bool inVertexElement = false;
+    bool vertexFirst     = true;
+    bool sawFaceElement  = false;
     forEachLine(header, [&](std::string_view line) {
         const auto tokens = splitWhitespace(line);
         if (tokens.size() >= 3 && tokens[0] == "element")
@@ -236,21 +232,21 @@ std::optional<PointCloud> PlyImporter::import(std::string_view data) const
             if (inVertexElement)
             {
                 long parsed = 0;
-                (void)std::from_chars(tokens[2].data(), tokens[2].data() + tokens[2].size(), parsed);
+                (void)std::from_chars(tokens[2].data(), tokens[2].data() + tokens[2].size(),
+                                      parsed);
                 vertexCount = static_cast<std::size_t>(std::max(0L, parsed));
                 vertexFirst = !sawFaceElement;
-            }
-            else if (tokens[1] == "face")
+            } else if (tokens[1] == "face")
             {
                 long parsed = 0;
-                (void)std::from_chars(tokens[2].data(), tokens[2].data() + tokens[2].size(), parsed);
+                (void)std::from_chars(tokens[2].data(), tokens[2].data() + tokens[2].size(),
+                                      parsed);
                 faceCount      = static_cast<std::size_t>(std::max(0L, parsed));
                 sawFaceElement = true;
             }
             propertySlot = 0;
-        }
-        else if (inVertexElement && tokens.size() >= 3 && tokens[0] == "property" &&
-                 tokens[1] != "list")
+        } else if (inVertexElement && tokens.size() >= 3 && tokens[0] == "property" &&
+                   tokens[1] != "list")
         {
             if (tokens[2] == "x")
                 xSlot = propertySlot;
@@ -264,7 +260,7 @@ std::optional<PointCloud> PlyImporter::import(std::string_view data) const
     if (vertexCount == 0 || xSlot < 0 || ySlot < 0 || zSlot < 0 || !vertexFirst)
         return std::nullopt;
 
-    PointCloud  cloud;
+    PointCloud cloud;
     std::size_t consumedVertices = 0;
     std::size_t consumedFaces    = 0;
     const std::string_view body  = data.substr(data.find('\n', headerEnd) + 1);
@@ -284,8 +280,7 @@ std::optional<PointCloud> PlyImporter::import(std::string_view data) const
                 cloud.points.size() < kMaxPoints)
                 cloud.points.push_back(point);
             ++consumedVertices;
-        }
-        else if (consumedFaces < faceCount)
+        } else if (consumedFaces < faceCount)
         {
             if (tokens.empty())
                 return;
@@ -339,31 +334,30 @@ std::optional<PointCloud> VoxImporter::import(std::string_view data) const
     std::size_t offset = 8; // 'VOX ' + version
     while (offset + 12 <= data.size())
     {
-        const std::string_view chunkId     = data.substr(offset, 4);
-        const std::uint32_t    contentSize = readU32LE(bytes + offset + 4);
-        offset += 12;
+        const std::string_view chunkId   = data.substr(offset, 4);
+        const std::uint32_t contentSize  = readU32LE(bytes + offset + 4);
+        offset                          += 12;
         if (offset + contentSize > data.size())
             break;
         if (chunkId == "XYZI" && contentSize >= 4)
         {
             const std::uint32_t voxelCount = readU32LE(bytes + offset);
             const std::uint32_t bounded    = static_cast<std::uint32_t>(std::min<std::size_t>(
-                voxelCount, std::min<std::size_t>((contentSize - 4) / 4,
-                                                  kMaxPoints - cloud.points.size())));
+                voxelCount,
+                std::min<std::size_t>((contentSize - 4) / 4, kMaxPoints - cloud.points.size())));
             for (std::uint32_t index = 0; index < bounded; ++index)
             {
-                const unsigned char *voxel = bytes + offset + 4 + static_cast<std::size_t>(index) * 4;
+                const unsigned char *voxel =
+                    bytes + offset + 4 + static_cast<std::size_t>(index) * 4;
                 cloud.points.push_back(Vec3f{static_cast<float>(voxel[0]),
                                              static_cast<float>(voxel[2]),
                                              static_cast<float>(voxel[1])});
             }
             offset += contentSize;
-        }
-        else if (chunkId == "MAIN")
+        } else if (chunkId == "MAIN")
         {
             offset += contentSize; // descend straight into the children
-        }
-        else
+        } else
         {
             offset += contentSize; // skip unrelated chunk content
         }

@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-
 #include "vigine/format/identify.h"
+
+#include <gtest/gtest.h>
 
 namespace
 {

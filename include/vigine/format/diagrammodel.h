@@ -44,7 +44,7 @@ struct DiagramModel
 class IDiagramImporter
 {
   public:
-    virtual ~IDiagramImporter() = default;
+    virtual ~IDiagramImporter()                          = default;
 
     [[nodiscard]] virtual std::string formatName() const = 0;
 

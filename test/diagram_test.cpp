@@ -1,10 +1,9 @@
-#include <gtest/gtest.h>
-
-#include <algorithm>
-#include <string>
-
 #include "vigine/format/diagramimporters.h"
 #include "vigine/format/diagrammodel.h"
+
+#include <algorithm>
+#include <gtest/gtest.h>
+#include <string>
 
 namespace
 {
@@ -168,8 +167,9 @@ TEST(JsonTreeImporter, ObjectArrayAndScalarTree)
             ++rootChildren;
     EXPECT_EQ(rootChildren, 3); // name, ports, tls
     // A primitive member carries "key: value"; an array element "[i] value".
-    const bool hasNameLeaf = std::any_of(model->nodes.begin(), model->nodes.end(),
-                                         [](const DiagramNode &n) { return n.label == "name: svc"; });
+    const bool hasNameLeaf =
+        std::any_of(model->nodes.begin(), model->nodes.end(),
+                    [](const DiagramNode &n) { return n.label == "name: svc"; });
     const bool hasPortLeaf = std::any_of(model->nodes.begin(), model->nodes.end(),
                                          [](const DiagramNode &n) { return n.label == "[0] 80"; });
     EXPECT_TRUE(hasNameLeaf);
