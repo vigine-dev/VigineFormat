@@ -1,10 +1,9 @@
-#include <gtest/gtest.h>
-
-#include <algorithm>
-#include <string>
-
 #include "vigine/format/diagramimporters.h"
 #include "vigine/format/identify.h"
+
+#include <algorithm>
+#include <gtest/gtest.h>
+#include <string>
 
 namespace
 {
@@ -31,7 +30,8 @@ TEST(YamlTreeImporter, MapAndSequenceBecomeTheContainmentTree)
 TEST(TomlTreeImporter, TablesArraysAndScalars)
 {
     TomlTreeImporter toml;
-    const auto model = toml.import("title = \"demo\"\n[server]\nhost = \"localhost\"\nports = [80, 443]\n");
+    const auto model =
+        toml.import("title = \"demo\"\n[server]\nhost = \"localhost\"\nports = [80, 443]\n");
     ASSERT_TRUE(model.has_value());
     EXPECT_NE(findByLabel(*model, "title: demo"), nullptr);
     EXPECT_NE(findByLabel(*model, "server"), nullptr);

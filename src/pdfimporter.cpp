@@ -21,12 +21,10 @@ std::optional<DiagramModel> PdfImporter::importFile(const std::string &path,
 
 #else
 
-#include <algorithm>
 #include <cstring>
+#include <pdfio.h>
 #include <string>
 #include <vector>
-
-#include <pdfio.h>
 
 namespace vigine::format
 {
@@ -62,7 +60,7 @@ bool recordError(pdfio_file_t *, const char *message, void *data)
 std::vector<std::string> firstTextRuns(pdfio_obj_t *page, std::size_t maxRuns)
 {
     std::vector<std::string> runs;
-    const std::size_t        streamCount = pdfioPageGetNumStreams(page);
+    const std::size_t streamCount = pdfioPageGetNumStreams(page);
     for (std::size_t streamIndex = 0; streamIndex < streamCount && runs.size() < maxRuns;
          ++streamIndex)
     {
@@ -70,8 +68,8 @@ std::vector<std::string> firstTextRuns(pdfio_obj_t *page, std::size_t maxRuns)
         if (stream == nullptr)
             continue;
         std::string content;
-        char        buffer[8192];
-        ssize_t     bytesRead = 0;
+        char buffer[8192];
+        ssize_t bytesRead                 = 0;
         constexpr std::size_t kMaxContent = 1u << 20;
         while ((bytesRead = pdfioStreamRead(stream, buffer, sizeof(buffer))) > 0 &&
                content.size() < kMaxContent)
@@ -79,7 +77,7 @@ std::vector<std::string> firstTextRuns(pdfio_obj_t *page, std::size_t maxRuns)
         pdfioStreamClose(stream);
 
         std::string current;
-        int         depth = 0;
+        int depth = 0;
         for (std::size_t index = 0; index < content.size() && runs.size() < maxRuns; ++index)
         {
             const char ch = content[index];
@@ -110,8 +108,7 @@ std::vector<std::string> firstTextRuns(pdfio_obj_t *page, std::size_t maxRuns)
                 {
                     if (!current.empty())
                         runs.push_back(current);
-                }
-                else
+                } else
                 {
                     current.push_back(ch);
                 }
@@ -125,16 +122,16 @@ std::vector<std::string> firstTextRuns(pdfio_obj_t *page, std::size_t maxRuns)
 } // namespace
 
 std::optional<DiagramModel> PdfImporter::importFile(const std::string &path,
-                                                    std::size_t        maxRunsPerPage) const
+                                                    std::size_t maxRunsPerPage) const
 {
-    std::string   error;
+    std::string error;
     pdfio_file_t *pdf = pdfioFileOpen(path.c_str(), nullptr, nullptr, recordError, &error);
     if (pdf == nullptr)
         return std::nullopt;
 
     DiagramModel model;
-    const char  *title = pdfioFileGetTitle(pdf);
-    std::string  rootLabel = (title != nullptr && title[0] != '\0') ? title : path;
+    const char *title       = pdfioFileGetTitle(pdf);
+    std::string rootLabel   = (title != nullptr && title[0] != '\0') ? title : path;
     const std::size_t slash = rootLabel.find_last_of('/');
     if (title == nullptr || title[0] == '\0')
         rootLabel = slash == std::string::npos ? rootLabel : rootLabel.substr(slash + 1);

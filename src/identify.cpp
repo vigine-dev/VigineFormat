@@ -1,6 +1,5 @@
 #include "vigine/format/identify.h"
 
-#include <algorithm>
 #include <array>
 #include <cctype>
 #include <string>
@@ -27,28 +26,49 @@ std::string_view formatName(KnownFormat format) noexcept
 {
     switch (format)
     {
-    case KnownFormat::Dot:        return "dot";
-    case KnownFormat::Mermaid:    return "mermaid";
-    case KnownFormat::GraphMl:    return "graphml";
-    case KnownFormat::PlantUml:   return "plantuml";
-    case KnownFormat::Json:       return "json";
-    case KnownFormat::EdgeList:   return "edgelist";
-    case KnownFormat::GraphQl:    return "graphql";
-    case KnownFormat::Protobuf:   return "protobuf";
-    case KnownFormat::Sql:        return "sql";
-    case KnownFormat::FlameGraph: return "flamegraph";
-    case KnownFormat::Yaml:       return "yaml";
-    case KnownFormat::Toml:       return "toml";
-    case KnownFormat::Xml:        return "xml";
-    case KnownFormat::Pdf:        return "pdf";
-    case KnownFormat::OpenApi:    return "openapi";
-    case KnownFormat::Obj:        return "obj";
-    case KnownFormat::Stl:        return "stl";
-    case KnownFormat::Ply:        return "ply";
-    case KnownFormat::Xyz:        return "xyz";
-    case KnownFormat::Vox:        return "vox";
+    case KnownFormat::Dot:
+        return "dot";
+    case KnownFormat::Mermaid:
+        return "mermaid";
+    case KnownFormat::GraphMl:
+        return "graphml";
+    case KnownFormat::PlantUml:
+        return "plantuml";
+    case KnownFormat::Json:
+        return "json";
+    case KnownFormat::EdgeList:
+        return "edgelist";
+    case KnownFormat::GraphQl:
+        return "graphql";
+    case KnownFormat::Protobuf:
+        return "protobuf";
+    case KnownFormat::Sql:
+        return "sql";
+    case KnownFormat::FlameGraph:
+        return "flamegraph";
+    case KnownFormat::Yaml:
+        return "yaml";
+    case KnownFormat::Toml:
+        return "toml";
+    case KnownFormat::Xml:
+        return "xml";
+    case KnownFormat::Pdf:
+        return "pdf";
+    case KnownFormat::OpenApi:
+        return "openapi";
+    case KnownFormat::Obj:
+        return "obj";
+    case KnownFormat::Stl:
+        return "stl";
+    case KnownFormat::Ply:
+        return "ply";
+    case KnownFormat::Xyz:
+        return "xyz";
+    case KnownFormat::Vox:
+        return "vox";
     case KnownFormat::Unknown:
-    default:                      return "unknown";
+    default:
+        return "unknown";
     }
 }
 
@@ -92,8 +112,7 @@ KnownFormat identifyContent(std::string_view content) noexcept
     const std::string lower = asciiLower(content);
     if (contains(lower, "create table"))
         return KnownFormat::Sql;
-    if (contains(content, "syntax =") ||
-        (contains(content, "message ") && contains(content, "{")))
+    if (contains(content, "syntax =") || (contains(content, "message ") && contains(content, "{")))
         return KnownFormat::Protobuf;
     if (contains(content, "scalar ") || contains(content, "type Query") ||
         contains(content, "schema {"))
@@ -107,8 +126,8 @@ KnownFormat identifyContent(std::string_view content) noexcept
         if (content.compare(firstGlyph, 6, "graph ") != 0)
             return false;
         const std::string_view direction = content.substr(firstGlyph + 6, 2);
-        return direction == "TD" || direction == "TB" || direction == "LR" ||
-               direction == "RL" || direction == "BT";
+        return direction == "TD" || direction == "TB" || direction == "LR" || direction == "RL" ||
+               direction == "BT";
     };
     if (mermaidHeader() || contains(content, "-->") || contains(content, "-.->") ||
         contains(content, "==>"))
@@ -130,24 +149,40 @@ KnownFormat identifyExtension(std::string_view fileName) noexcept
     struct Mapping
     {
         std::string_view extension;
-        KnownFormat      format;
+        KnownFormat format;
     };
-    static constexpr std::array<Mapping, 28> kMappings = {{
-        {"dot", KnownFormat::Dot},          {"gv", KnownFormat::Dot},
-        {"mmd", KnownFormat::Mermaid},      {"mermaid", KnownFormat::Mermaid},
-        {"graphml", KnownFormat::GraphMl},  {"puml", KnownFormat::PlantUml},
-        {"plantuml", KnownFormat::PlantUml},{"wsd", KnownFormat::PlantUml},
-        {"json", KnownFormat::Json},        {"ipynb", KnownFormat::Json},
-        {"gql", KnownFormat::GraphQl},      {"graphql", KnownFormat::GraphQl},
-        {"proto", KnownFormat::Protobuf},   {"sql", KnownFormat::Sql},
-        {"ddl", KnownFormat::Sql},          {"folded", KnownFormat::FlameGraph},
-        {"collapsed", KnownFormat::FlameGraph}, {"yaml", KnownFormat::Yaml},
-        {"yml", KnownFormat::Yaml},         {"toml", KnownFormat::Toml},
-        {"xml", KnownFormat::Xml},          {"pdf", KnownFormat::Pdf},
-        {"obj", KnownFormat::Obj},          {"stl", KnownFormat::Stl},
-        {"ply", KnownFormat::Ply},          {"xyz", KnownFormat::Xyz},
-        {"pts", KnownFormat::Xyz},          {"vox", KnownFormat::Vox},
-    }};
+    static constexpr std::array<Mapping, 28> kMappings = {
+        {
+         {"dot", KnownFormat::Dot},
+         {"gv", KnownFormat::Dot},
+         {"mmd", KnownFormat::Mermaid},
+         {"mermaid", KnownFormat::Mermaid},
+         {"graphml", KnownFormat::GraphMl},
+         {"puml", KnownFormat::PlantUml},
+         {"plantuml", KnownFormat::PlantUml},
+         {"wsd", KnownFormat::PlantUml},
+         {"json", KnownFormat::Json},
+         {"ipynb", KnownFormat::Json},
+         {"gql", KnownFormat::GraphQl},
+         {"graphql", KnownFormat::GraphQl},
+         {"proto", KnownFormat::Protobuf},
+         {"sql", KnownFormat::Sql},
+         {"ddl", KnownFormat::Sql},
+         {"folded", KnownFormat::FlameGraph},
+         {"collapsed", KnownFormat::FlameGraph},
+         {"yaml", KnownFormat::Yaml},
+         {"yml", KnownFormat::Yaml},
+         {"toml", KnownFormat::Toml},
+         {"xml", KnownFormat::Xml},
+         {"pdf", KnownFormat::Pdf},
+         {"obj", KnownFormat::Obj},
+         {"stl", KnownFormat::Stl},
+         {"ply", KnownFormat::Ply},
+         {"xyz", KnownFormat::Xyz},
+         {"pts", KnownFormat::Xyz},
+         {"vox", KnownFormat::Vox},
+         }
+    };
     for (const auto &mapping : kMappings)
         if (ext == mapping.extension)
             return mapping.format;

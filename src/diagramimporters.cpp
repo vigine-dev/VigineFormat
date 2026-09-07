@@ -2,20 +2,16 @@
 
 #include <array>
 #include <cctype>
+#include <nlohmann/json.hpp>
 #include <set>
 #include <string>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 namespace vigine::format
 {
 namespace
 {
-bool isSpace(char ch)
-{
-    return std::isspace(static_cast<unsigned char>(ch)) != 0;
-}
+bool isSpace(char ch) { return std::isspace(static_cast<unsigned char>(ch)) != 0; }
 
 std::string_view trim(std::string_view text)
 {
@@ -66,10 +62,14 @@ char closingFor(char open)
 {
     switch (open)
     {
-    case '[': return ']';
-    case '(': return ')';
-    case '{': return '}';
-    default:  return '\0';
+    case '[':
+        return ']';
+    case '(':
+        return ')';
+    case '{':
+        return '}';
+    default:
+        return '\0';
     }
 }
 
@@ -84,7 +84,7 @@ struct Endpoint
 
 Endpoint parseEndpoint(std::string_view side)
 {
-    side = trim(side);
+    side               = trim(side);
     std::size_t cursor = 0;
     while (cursor < side.size() && side[cursor] != '"' && side[cursor] != '\'' &&
            std::isalnum(static_cast<unsigned char>(side[cursor])) == 0)
@@ -101,8 +101,7 @@ Endpoint parseEndpoint(std::string_view side)
             endpoint.id = std::string(side.substr(cursor + 1, end - cursor - 1));
             cursor      = end + 1;
         }
-    }
-    else
+    } else
     {
         const std::size_t idStart = cursor;
         while (cursor < side.size() &&
@@ -140,8 +139,8 @@ Endpoint parseEndpoint(std::string_view side)
     return endpoint;
 }
 
-const std::array<std::string_view, 8> kMermaidArrows = {"-.->", "==>", "-->", "--x", "--o",
-                                                        "---", "===", "-.-"};
+const std::array<std::string_view, 8> kMermaidArrows = {"-.->", "==>", "-->", "--x",
+                                                        "--o",  "---", "===", "-.-"};
 
 // Finds the first Mermaid arrow in `line`; returns its offset, length, and
 // whether it is directed. offset == npos when none.
@@ -174,7 +173,7 @@ ArrowMatch findArrow(std::string_view line)
 std::optional<DiagramModel> DotImporter::import(std::string_view text) const
 {
     DiagramModel model;
-    std::string  body(text);
+    std::string body(text);
     const std::size_t open  = body.find('{');
     const std::size_t close = body.rfind('}');
     if (open != std::string::npos && close != std::string::npos && close > open)
@@ -193,16 +192,16 @@ std::optional<DiagramModel> DotImporter::import(std::string_view text) const
         const std::size_t undir = stmt.find("--");
         if (arrow != std::string_view::npos || undir != std::string_view::npos)
         {
-            const bool directed = arrow != std::string_view::npos;
+            const bool directed       = arrow != std::string_view::npos;
             const std::string_view op = directed ? "->" : "--";
             // Chain a -> b -> c.
             std::vector<std::string> ids;
             std::size_t start = 0;
             while (start <= stmt.size())
             {
-                const std::size_t next = stmt.find(op, start);
-                const std::string_view token =
-                    stmt.substr(start, (next == std::string_view::npos ? stmt.size() : next) - start);
+                const std::size_t next       = stmt.find(op, start);
+                const std::string_view token = stmt.substr(
+                    start, (next == std::string_view::npos ? stmt.size() : next) - start);
                 ids.push_back(parseEndpoint(token).id);
                 if (next == std::string_view::npos)
                 {
@@ -219,7 +218,7 @@ std::optional<DiagramModel> DotImporter::import(std::string_view text) const
         const std::size_t bracket = stmt.find('[');
         if (bracket != std::string_view::npos)
         {
-            const std::string id = unquote(trim(stmt.substr(0, bracket)));
+            const std::string id       = unquote(trim(stmt.substr(0, bracket)));
             const std::size_t labelPos = stmt.find("label", bracket);
             std::string label;
             if (labelPos != std::string_view::npos)
@@ -369,7 +368,7 @@ std::string firstDataText(std::string_view slice)
 std::optional<DiagramModel> GraphMlImporter::import(std::string_view text) const
 {
     DiagramModel model;
-    std::size_t  cursor = 0;
+    std::size_t cursor = 0;
     while (cursor < text.size())
     {
         const std::size_t lt = text.find('<', cursor);
@@ -444,8 +443,7 @@ std::string plantUmlEndpoint(std::string_view side, bool takeLast)
     // name is the outermost non-multiplicity token.
     auto isMultiplicity = [](std::string_view token) {
         const std::string bare = unquote(token);
-        return !bare.empty() &&
-               bare.find_first_not_of("0123456789*.") == std::string::npos;
+        return !bare.empty() && bare.find_first_not_of("0123456789*.") == std::string::npos;
     };
     if (takeLast)
     {
@@ -456,8 +454,7 @@ std::string plantUmlEndpoint(std::string_view side, bool takeLast)
                 return unquote(*it);
             }
         }
-    }
-    else
+    } else
     {
         for (const std::string_view token : tokens)
         {
@@ -474,7 +471,7 @@ std::string plantUmlEndpoint(std::string_view side, bool takeLast)
 std::optional<DiagramModel> PlantUmlImporter::import(std::string_view text) const
 {
     DiagramModel model;
-    int          blockDepth = 0;
+    int blockDepth = 0;
     for (const std::string_view raw : splitAny(text, "\n"))
     {
         std::string_view line = trim(raw);
@@ -572,15 +569,14 @@ std::optional<DiagramModel> PlantUmlImporter::import(std::string_view text) cons
             edgeLabel = std::string(trim(rightSide.substr(colon + 1)));
             rightSide = rightSide.substr(0, colon);
         }
-        const bool headLeft  = connector.front() == '<' || connector.front() == '|' ||
-                              connector.front() == '*' || connector.front() == 'o';
+        const bool headLeft     = connector.front() == '<' || connector.front() == '|' ||
+                                  connector.front() == '*' || connector.front() == 'o';
         const std::string left  = plantUmlEndpoint(leftSide, true);
         const std::string right = plantUmlEndpoint(rightSide, false);
         if (headLeft)
         {
             model.addEdge(right, left, edgeLabel);
-        }
-        else
+        } else
         {
             model.addEdge(left, right, edgeLabel);
         }
@@ -635,7 +631,7 @@ std::string truncateLabel(std::string text)
     return text;
 }
 
-constexpr int         kJsonMaxDepth = 12;
+constexpr int kJsonMaxDepth         = 12;
 constexpr std::size_t kJsonMaxNodes = 256;
 
 // Adds `value` as a node and recurses into its children, joining each by a
@@ -658,7 +654,7 @@ void walkJson(DiagramModel &model, const nlohmann::json &value, const std::strin
                 break;
             }
             const std::string childId = "n" + std::to_string(counter++);
-            std::string       childLabel = member.key();
+            std::string childLabel    = member.key();
             if (member.value().is_primitive())
             {
                 childLabel += ": " + jsonScalarText(member.value());
@@ -666,8 +662,7 @@ void walkJson(DiagramModel &model, const nlohmann::json &value, const std::strin
             walkJson(model, member.value(), childId, truncateLabel(childLabel), depth + 1, counter);
             model.addEdge(nodeId, childId);
         }
-    }
-    else if (value.is_array())
+    } else if (value.is_array())
     {
         std::size_t index = 0;
         for (const auto &element : value)
@@ -676,8 +671,8 @@ void walkJson(DiagramModel &model, const nlohmann::json &value, const std::strin
             {
                 break;
             }
-            const std::string childId    = "n" + std::to_string(counter++);
-            std::string       childLabel = "[" + std::to_string(index) + "]";
+            const std::string childId = "n" + std::to_string(counter++);
+            std::string childLabel    = "[" + std::to_string(index) + "]";
             if (element.is_primitive())
             {
                 childLabel += " " + jsonScalarText(element);
@@ -787,17 +782,15 @@ std::optional<DiagramModel> JsonTreeImporter::import(std::string_view text) cons
         return std::nullopt;
     }
     DiagramModel model;
-    std::size_t  counter = 1; // root takes id n0
-    std::string  rootLabel;
+    std::size_t counter = 1; // root takes id n0
+    std::string rootLabel;
     if (root.is_object())
     {
         rootLabel = "object";
-    }
-    else if (root.is_array())
+    } else if (root.is_array())
     {
         rootLabel = "array";
-    }
-    else
+    } else
     {
         rootLabel = jsonScalarText(root);
     }
@@ -813,7 +806,7 @@ std::optional<DiagramModel> JsonTreeImporter::import(std::string_view text) cons
 std::optional<DiagramModel> FlameGraphImporter::import(std::string_view text) const
 {
     constexpr std::size_t kFlameMaxNodes = 512;
-    DiagramModel          model;
+    DiagramModel model;
     for (const std::string_view raw : splitAny(text, "\n"))
     {
         const std::string_view line = trim(raw);
@@ -822,13 +815,12 @@ std::optional<DiagramModel> FlameGraphImporter::import(std::string_view text) co
             continue;
         }
         // The trailing token is a sample count when it is all digits; drop it.
-        std::string_view stack     = line;
+        std::string_view stack      = line;
         const std::size_t lastSpace = line.rfind(' ');
         if (lastSpace != std::string_view::npos)
         {
             const std::string_view tail = line.substr(lastSpace + 1);
-            if (!tail.empty() &&
-                tail.find_first_not_of("0123456789") == std::string_view::npos)
+            if (!tail.empty() && tail.find_first_not_of("0123456789") == std::string_view::npos)
             {
                 stack = trim(line.substr(0, lastSpace));
             }
@@ -841,7 +833,8 @@ std::optional<DiagramModel> FlameGraphImporter::import(std::string_view text) co
             {
                 break;
             }
-            const std::string framePath = path.empty() ? std::string(frame) : path + ";" + std::string(frame);
+            const std::string framePath =
+                path.empty() ? std::string(frame) : path + ";" + std::string(frame);
             model.addNode(framePath, std::string(frame)); // label = leaf frame name
             if (!parentPath.empty())
             {
@@ -861,13 +854,13 @@ std::optional<DiagramModel> FlameGraphImporter::import(std::string_view text) co
 
 std::optional<DiagramModel> GraphQlImporter::import(std::string_view text) const
 {
-    const std::array<std::string_view, 6> kBlockKeywords = {"type", "interface", "input", "enum",
-                                                            "union", "scalar"};
-    const std::vector<std::string_view>   lines = splitAny(text, "\n");
+    const std::array<std::string_view, 6> kBlockKeywords = {"type", "interface", "input",
+                                                            "enum", "union",     "scalar"};
+    const std::vector<std::string_view> lines            = splitAny(text, "\n");
 
     // Pass 1: every declaration is a node; remember the names so a field edge is
     // only raised between declared types (not to scalars like String/Int).
-    DiagramModel          model;
+    DiagramModel model;
     std::set<std::string> declared;
     for (const std::string_view raw : lines)
     {
@@ -891,7 +884,7 @@ std::optional<DiagramModel> GraphQlImporter::import(std::string_view text) const
     // member that names a declared type becomes an edge.
     std::string current;
     std::string pending;
-    int         depth = 0;
+    int depth = 0;
     for (const std::string_view raw : lines)
     {
         const std::string_view line = trim(raw);
@@ -920,7 +913,7 @@ std::optional<DiagramModel> GraphQlImporter::import(std::string_view text) const
             {
                 if (startsWithKeyword(line, keyword))
                 {
-                    pending = firstIdentifier(line.substr(keyword.size()));
+                    pending                = firstIdentifier(line.substr(keyword.size()));
                     const std::size_t impl = line.find("implements");
                     if (impl != std::string_view::npos)
                     {
@@ -934,9 +927,9 @@ std::optional<DiagramModel> GraphQlImporter::import(std::string_view text) const
                 }
             }
         }
-        const std::size_t opens    = countChar(line, '{');
-        const std::size_t closes   = countChar(line, '}');
-        const bool        entering = (depth == 0 && opens > 0);
+        const std::size_t opens  = countChar(line, '{');
+        const std::size_t closes = countChar(line, '}');
+        const bool entering      = (depth == 0 && opens > 0);
         if (entering)
         {
             current = pending;
@@ -960,7 +953,7 @@ std::optional<DiagramModel> GraphQlImporter::import(std::string_view text) const
         depth += static_cast<int>(opens) - static_cast<int>(closes);
         if (depth <= 0)
         {
-            depth   = 0;
+            depth = 0;
             current.clear();
         }
     }
@@ -977,7 +970,7 @@ std::optional<DiagramModel> ProtobufImporter::import(std::string_view text) cons
     const std::vector<std::string_view> lines = splitAny(text, "\n");
 
     // Pass 1: every message/enum (including nested) is a node.
-    DiagramModel          model;
+    DiagramModel model;
     std::set<std::string> declared;
     for (const std::string_view raw : lines)
     {
@@ -998,7 +991,7 @@ std::optional<DiagramModel> ProtobufImporter::import(std::string_view text) cons
     // field is a scalar or the statement is not a field. Handles `map<K,V>`
     // (value type) and a `[repeated|optional|required] Type name = N` field.
     const auto fieldTypeOf = [](std::string_view statement) -> std::string {
-        statement              = trim(statement);
+        statement                = trim(statement);
         const std::size_t mapPos = statement.find("map<");
         if (mapPos != std::string_view::npos)
         {
@@ -1010,7 +1003,7 @@ std::optional<DiagramModel> ProtobufImporter::import(std::string_view text) cons
         {
             return {};
         }
-        std::string_view scan = statement;
+        std::string_view scan                                            = statement;
         static constexpr std::array<std::string_view, 3> kFieldModifiers = {"repeated", "optional",
                                                                             "required"};
         for (const std::string_view modifier : kFieldModifiers)
@@ -1030,13 +1023,13 @@ std::optional<DiagramModel> ProtobufImporter::import(std::string_view text) cons
     // statements are scanned per `;`, so an inline `message X { A a = 1; }` and
     // a one-field-per-line body both resolve.
     std::string current;
-    int         depth = 0;
+    int depth = 0;
     for (const std::string_view raw : lines)
     {
-        const std::string_view line      = trim(raw);
-        const bool             isMessage = startsWithKeyword(line, "message");
-        const bool             isEnum    = startsWithKeyword(line, "enum");
-        const bool             entering  = depth == 0 && (isMessage || isEnum);
+        const std::string_view line = trim(raw);
+        const bool isMessage        = startsWithKeyword(line, "message");
+        const bool isEnum           = startsWithKeyword(line, "enum");
+        const bool entering         = depth == 0 && (isMessage || isEnum);
         if (entering)
         {
             current = firstIdentifier(line.substr(isMessage ? 7 : 4));
@@ -1049,7 +1042,8 @@ std::optional<DiagramModel> ProtobufImporter::import(std::string_view text) cons
             if (entering)
             {
                 const std::size_t brace = line.find('{');
-                body = brace == std::string_view::npos ? std::string_view{} : line.substr(brace + 1);
+                body =
+                    brace == std::string_view::npos ? std::string_view{} : line.substr(brace + 1);
             }
             for (const std::string_view statement : splitAny(body, ";"))
             {
@@ -1078,12 +1072,12 @@ std::optional<DiagramModel> ProtobufImporter::import(std::string_view text) cons
 std::optional<DiagramModel> SqlErdImporter::import(std::string_view text) const
 {
     DiagramModel model;
-    std::string  current;
-    int          parenDepth = 0;
+    std::string current;
+    int parenDepth = 0;
     for (const std::string_view raw : splitAny(text, "\n"))
     {
-        const std::string_view line      = trim(raw);
-        const std::string      lowerLine = asciiLower(line);
+        const std::string_view line = trim(raw);
+        const std::string lowerLine = asciiLower(line);
 
         if (parenDepth == 0)
         {
@@ -1114,7 +1108,8 @@ std::optional<DiagramModel> SqlErdImporter::import(std::string_view text) const
                 refScan += 10;
             }
         }
-        parenDepth += static_cast<int>(countChar(line, '(')) - static_cast<int>(countChar(line, ')'));
+        parenDepth +=
+            static_cast<int>(countChar(line, '(')) - static_cast<int>(countChar(line, ')'));
         if (parenDepth <= 0)
         {
             parenDepth = 0;

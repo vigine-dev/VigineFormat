@@ -1,10 +1,9 @@
-#include <gtest/gtest.h>
-
-#include <cstring>
-#include <string>
-
 #include "vigine/format/identify.h"
 #include "vigine/format/pointcloud.h"
+
+#include <cstring>
+#include <gtest/gtest.h>
+#include <string>
 
 namespace
 {
@@ -59,10 +58,10 @@ TEST(StlImporter, BinaryTriangles)
 TEST(PlyImporter, AsciiVerticesAndFaces)
 {
     PlyImporter ply;
-    const auto cloud = ply.import(
-        "ply\nformat ascii 1.0\nelement vertex 3\nproperty float x\nproperty float y\n"
-        "property float z\nelement face 1\nproperty list uchar int vertex_indices\n"
-        "end_header\n0 0 0\n1 0 0\n0 1 0\n3 0 1 2\n");
+    const auto cloud =
+        ply.import("ply\nformat ascii 1.0\nelement vertex 3\nproperty float x\nproperty float y\n"
+                   "property float z\nelement face 1\nproperty list uchar int vertex_indices\n"
+                   "end_header\n0 0 0\n1 0 0\n0 1 0\n3 0 1 2\n");
     ASSERT_TRUE(cloud.has_value());
     EXPECT_EQ(cloud->points.size(), 3u);
     EXPECT_EQ(cloud->edges.size(), 3u);
@@ -80,18 +79,34 @@ TEST(XyzImporter, PlainPoints)
 TEST(VoxImporter, ChunkStreamVoxels)
 {
     // Minimal VOX: magic+version, MAIN (children only), SIZE, XYZI with 2 voxels.
-    std::string blob = "VOX ";
+    std::string blob    = "VOX ";
     const auto append32 = [&blob](std::uint32_t value) {
         char bytes[4];
         std::memcpy(bytes, &value, 4);
         blob.append(bytes, 4);
     };
-    append32(150);                              // version
-    blob += "MAIN"; append32(0); append32(52);  // children: SIZE(24) + XYZI(28)
-    blob += "SIZE"; append32(12); append32(0); append32(2); append32(2); append32(1);
-    blob += "XYZI"; append32(12); append32(0); append32(2);
-    blob.push_back(0); blob.push_back(0); blob.push_back(0); blob.push_back(1); // voxel A
-    blob.push_back(1); blob.push_back(1); blob.push_back(0); blob.push_back(2); // voxel B
+    append32(150); // version
+    blob += "MAIN";
+    append32(0);
+    append32(52); // children: SIZE(24) + XYZI(28)
+    blob += "SIZE";
+    append32(12);
+    append32(0);
+    append32(2);
+    append32(2);
+    append32(1);
+    blob += "XYZI";
+    append32(12);
+    append32(0);
+    append32(2);
+    blob.push_back(0);
+    blob.push_back(0);
+    blob.push_back(0);
+    blob.push_back(1); // voxel A
+    blob.push_back(1);
+    blob.push_back(1);
+    blob.push_back(0);
+    blob.push_back(2); // voxel B
 
     VoxImporter vox;
     const auto cloud = vox.import(blob);
