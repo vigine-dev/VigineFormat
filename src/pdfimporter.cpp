@@ -54,6 +54,67 @@ bool recordError(pdfio_file_t *, const char *message, void *data)
     return false;
 }
 
+// The decoded content of one page stream, capped, or empty when it cannot be opened.
+std::string readDecodedStream(pdfio_obj_t *page, std::size_t streamIndex)
+{
+    pdfio_stream_t *stream = pdfioPageOpenStream(page, streamIndex, /*decode=*/true);
+    if (stream == nullptr)
+        return {};
+    std::string content;
+    char buffer[8192];
+    ssize_t bytesRead                 = 0;
+    constexpr std::size_t kMaxContent = 1u << 20;
+    while ((bytesRead = pdfioStreamRead(stream, buffer, sizeof(buffer))) > 0 &&
+           content.size() < kMaxContent)
+        content.append(buffer, static_cast<std::size_t>(bytesRead));
+    pdfioStreamClose(stream);
+    return content;
+}
+
+void scanTextRuns(const std::string &content, std::size_t maxRuns, std::vector<std::string> &runs)
+{
+    std::string current;
+    int depth = 0;
+    for (std::size_t index = 0; index < content.size() && runs.size() < maxRuns; ++index)
+    {
+        const char ch = content[index];
+        if (depth == 0)
+        {
+            if (ch == '(')
+            {
+                depth   = 1;
+                current = {};
+            }
+            continue;
+        }
+        if (ch == '\\' && index + 1 < content.size())
+        {
+            current.push_back(content[++index]);
+            continue;
+        }
+        if (ch == '(')
+        {
+            ++depth;
+            current.push_back(ch);
+            continue;
+        }
+        if (ch == ')')
+        {
+            --depth;
+            if (depth == 0)
+            {
+                if (!current.empty())
+                    runs.push_back(current);
+            } else
+            {
+                current.push_back(ch);
+            }
+            continue;
+        }
+        current.push_back(ch);
+    }
+}
+
 // Pulls the first parenthesised string literals out of a page's decoded
 // content stream -- in practice those are the page's text-show arguments.
 // Handles \-escapes and nested parentheses the way the PDF grammar does.
@@ -64,58 +125,7 @@ std::vector<std::string> firstTextRuns(pdfio_obj_t *page, std::size_t maxRuns)
     for (std::size_t streamIndex = 0; streamIndex < streamCount && runs.size() < maxRuns;
          ++streamIndex)
     {
-        pdfio_stream_t *stream = pdfioPageOpenStream(page, streamIndex, /*decode=*/true);
-        if (stream == nullptr)
-            continue;
-        std::string content;
-        char buffer[8192];
-        ssize_t bytesRead                 = 0;
-        constexpr std::size_t kMaxContent = 1u << 20;
-        while ((bytesRead = pdfioStreamRead(stream, buffer, sizeof(buffer))) > 0 &&
-               content.size() < kMaxContent)
-            content.append(buffer, static_cast<std::size_t>(bytesRead));
-        pdfioStreamClose(stream);
-
-        std::string current;
-        int depth = 0;
-        for (std::size_t index = 0; index < content.size() && runs.size() < maxRuns; ++index)
-        {
-            const char ch = content[index];
-            if (depth == 0)
-            {
-                if (ch == '(')
-                {
-                    depth   = 1;
-                    current = {};
-                }
-                continue;
-            }
-            if (ch == '\\' && index + 1 < content.size())
-            {
-                current.push_back(content[++index]);
-                continue;
-            }
-            if (ch == '(')
-            {
-                ++depth;
-                current.push_back(ch);
-                continue;
-            }
-            if (ch == ')')
-            {
-                --depth;
-                if (depth == 0)
-                {
-                    if (!current.empty())
-                        runs.push_back(current);
-                } else
-                {
-                    current.push_back(ch);
-                }
-                continue;
-            }
-            current.push_back(ch);
-        }
+        scanTextRuns(readDecodedStream(page, streamIndex), maxRuns, runs);
     }
     return runs;
 }

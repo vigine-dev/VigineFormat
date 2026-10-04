@@ -188,6 +188,35 @@ std::string bracketLabel(std::string_view stmt, std::size_t bracket)
     }
     return unquote(stmt.substr(eq + 1, valueEnd - eq - 1));
 }
+
+void addDotChain(DiagramModel &model, std::string_view stmt, std::string_view op, bool directed)
+{
+    // Chain a -> b -> c.
+    std::vector<std::string> ids;
+    std::size_t start = 0;
+    while (start <= stmt.size())
+    {
+        const std::size_t next = stmt.find(op, start);
+        const std::string_view token =
+            stmt.substr(start, (next == std::string_view::npos ? stmt.size() : next) - start);
+        ids.push_back(parseEndpoint(token).id);
+        if (next == std::string_view::npos)
+        {
+            break;
+        }
+        start = next + op.size();
+    }
+    for (std::size_t index = 1; index < ids.size(); ++index)
+    {
+        model.addEdge(ids[index - 1], ids[index], {}, directed);
+    }
+}
+
+void addDotNodeStatement(DiagramModel &model, std::string_view stmt, std::size_t bracket)
+{
+    const std::string id = unquote(trim(stmt.substr(0, bracket)));
+    model.addNode(id, bracketLabel(stmt, bracket));
+}
 } // namespace
 
 std::optional<DiagramModel> DotImporter::import(std::string_view text) const
@@ -214,33 +243,13 @@ std::optional<DiagramModel> DotImporter::import(std::string_view text) const
         {
             const bool directed       = arrow != std::string_view::npos;
             const std::string_view op = directed ? "->" : "--";
-            // Chain a -> b -> c.
-            std::vector<std::string> ids;
-            std::size_t start = 0;
-            while (start <= stmt.size())
-            {
-                const std::size_t next       = stmt.find(op, start);
-                const std::string_view token = stmt.substr(
-                    start, (next == std::string_view::npos ? stmt.size() : next) - start);
-                ids.push_back(parseEndpoint(token).id);
-                if (next == std::string_view::npos)
-                {
-                    break;
-                }
-                start = next + op.size();
-            }
-            for (std::size_t index = 1; index < ids.size(); ++index)
-            {
-                model.addEdge(ids[index - 1], ids[index], {}, directed);
-            }
+            addDotChain(model, stmt, op, directed);
             continue;
         }
         const std::size_t bracket = stmt.find('[');
         if (bracket != std::string_view::npos)
         {
-            const std::string id       = unquote(trim(stmt.substr(0, bracket)));
-            const std::string label    = bracketLabel(stmt, bracket);
-            model.addNode(id, label);
+            addDotNodeStatement(model, stmt, bracket);
             continue;
         }
         if (stmt.find('=') == std::string_view::npos)
@@ -472,6 +481,97 @@ std::string plantUmlEndpoint(std::string_view side, bool takeLast)
     }
     return unquote(tokens.front());
 }
+
+// True when the line declared a type (and so is not a relationship).
+bool addPlantUmlTypeDeclaration(DiagramModel &model, std::string_view line, int &blockDepth)
+{
+    // Type declaration: [abstract] class|interface|enum|entity Name [{].
+    std::string_view declScan = line;
+    if (declScan.rfind("abstract", 0) == 0)
+    {
+        declScan = trim(declScan.substr(8));
+    }
+    static constexpr std::array<std::string_view, 4> kTypeKeywords = {"class", "interface", "enum",
+                                                                      "entity"};
+    for (const std::string_view keyword : kTypeKeywords)
+    {
+        if (declScan.rfind(keyword, 0) == 0 && declScan.size() > keyword.size() &&
+            isSpace(declScan[keyword.size()]))
+        {
+            std::string_view rest = trim(declScan.substr(keyword.size()));
+            if (rest.find('}') == std::string_view::npos &&
+                rest.find('{') != std::string_view::npos)
+            {
+                ++blockDepth;
+            }
+            const std::size_t brace = rest.find_first_of("{");
+            if (brace != std::string_view::npos)
+            {
+                rest = trim(rest.substr(0, brace));
+            }
+            const std::size_t stereotype = rest.find('<');
+            if (stereotype != std::string_view::npos)
+            {
+                rest = trim(rest.substr(0, stereotype));
+            }
+            model.addNode(unquote(rest));
+            return true;
+        }
+    }
+    return false;
+}
+
+// Finds a connector run (>=2 chars, contains - or .).
+bool findConnectorRun(std::string_view line, std::size_t &runStart, std::size_t &runEnd)
+{
+    for (std::size_t index = 0; index < line.size(); ++index)
+    {
+        if (isConnectorChar(line[index]))
+        {
+            std::size_t end = index;
+            bool hasLine    = false;
+            while (end < line.size() && isConnectorChar(line[end]))
+            {
+                hasLine = hasLine || line[end] == '-' || line[end] == '.';
+                ++end;
+            }
+            if (hasLine && end - index >= 2)
+            {
+                runStart = index;
+                runEnd   = end;
+                return true;
+            }
+            index = end;
+        }
+    }
+    return false;
+}
+
+void addPlantUmlRelationship(DiagramModel &model, std::string_view line, std::size_t runStart,
+                             std::size_t runEnd)
+{
+    const std::string_view connector = line.substr(runStart, runEnd - runStart);
+    std::string_view leftSide        = line.substr(0, runStart);
+    std::string_view rightSide       = line.substr(runEnd);
+    std::string edgeLabel;
+    const std::size_t colon = rightSide.find(':');
+    if (colon != std::string_view::npos)
+    {
+        edgeLabel = std::string(trim(rightSide.substr(colon + 1)));
+        rightSide = rightSide.substr(0, colon);
+    }
+    const bool headLeft     = connector.front() == '<' || connector.front() == '|' ||
+                              connector.front() == '*' || connector.front() == 'o';
+    const std::string left  = plantUmlEndpoint(leftSide, true);
+    const std::string right = plantUmlEndpoint(rightSide, false);
+    if (headLeft)
+    {
+        model.addEdge(right, left, edgeLabel);
+    } else
+    {
+        model.addEdge(left, right, edgeLabel);
+    }
+}
 } // namespace
 
 std::optional<DiagramModel> PlantUmlImporter::import(std::string_view text) const
@@ -498,93 +598,16 @@ std::optional<DiagramModel> PlantUmlImporter::import(std::string_view text) cons
             continue;
         }
 
-        // Type declaration: [abstract] class|interface|enum|entity Name [{].
-        std::string_view declScan = line;
-        if (declScan.rfind("abstract", 0) == 0)
-        {
-            declScan = trim(declScan.substr(8));
-        }
-        static constexpr std::array<std::string_view, 4> kTypeKeywords = {"class", "interface",
-                                                                          "enum", "entity"};
-        for (const std::string_view keyword : kTypeKeywords)
-        {
-            if (declScan.rfind(keyword, 0) == 0 && declScan.size() > keyword.size() &&
-                isSpace(declScan[keyword.size()]))
-            {
-                std::string_view rest = trim(declScan.substr(keyword.size()));
-                if (rest.find('}') == std::string_view::npos &&
-                    rest.find('{') != std::string_view::npos)
-                {
-                    ++blockDepth;
-                }
-                const std::size_t brace = rest.find_first_of("{");
-                if (brace != std::string_view::npos)
-                {
-                    rest = trim(rest.substr(0, brace));
-                }
-                const std::size_t stereotype = rest.find('<');
-                if (stereotype != std::string_view::npos)
-                {
-                    rest = trim(rest.substr(0, stereotype));
-                }
-                model.addNode(unquote(rest));
-                declScan = {};
-                break;
-            }
-        }
-        if (declScan.empty())
+        if (addPlantUmlTypeDeclaration(model, line, blockDepth))
         {
             continue;
         }
 
-        // Relationship: find a connector run (>=2 chars, contains - or .).
         std::size_t runStart = std::string_view::npos;
         std::size_t runEnd   = std::string_view::npos;
-        for (std::size_t index = 0; index < line.size(); ++index)
+        if (findConnectorRun(line, runStart, runEnd))
         {
-            if (isConnectorChar(line[index]))
-            {
-                std::size_t end = index;
-                bool hasLine    = false;
-                while (end < line.size() && isConnectorChar(line[end]))
-                {
-                    hasLine = hasLine || line[end] == '-' || line[end] == '.';
-                    ++end;
-                }
-                if (hasLine && end - index >= 2)
-                {
-                    runStart = index;
-                    runEnd   = end;
-                    break;
-                }
-                index = end;
-            }
-        }
-        if (runStart == std::string_view::npos)
-        {
-            continue;
-        }
-
-        const std::string_view connector = line.substr(runStart, runEnd - runStart);
-        std::string_view leftSide        = line.substr(0, runStart);
-        std::string_view rightSide       = line.substr(runEnd);
-        std::string edgeLabel;
-        const std::size_t colon = rightSide.find(':');
-        if (colon != std::string_view::npos)
-        {
-            edgeLabel = std::string(trim(rightSide.substr(colon + 1)));
-            rightSide = rightSide.substr(0, colon);
-        }
-        const bool headLeft     = connector.front() == '<' || connector.front() == '|' ||
-                                  connector.front() == '*' || connector.front() == 'o';
-        const std::string left  = plantUmlEndpoint(leftSide, true);
-        const std::string right = plantUmlEndpoint(rightSide, false);
-        if (headLeft)
-        {
-            model.addEdge(right, left, edgeLabel);
-        } else
-        {
-            model.addEdge(left, right, edgeLabel);
+            addPlantUmlRelationship(model, line, runStart, runEnd);
         }
     }
 
@@ -860,11 +883,58 @@ std::optional<DiagramModel> FlameGraphImporter::import(std::string_view text) co
 
 namespace
 {
-void openFieldBlock(std::string_view line, const std::set<std::string> &declared,
-                    DiagramModel &model, std::string &pending)
+// Pass 1: every declaration is a node; remember the names so a field edge is
+// only raised between declared types (not to scalars like String/Int).
+void collectGraphQlDeclarations(const std::vector<std::string_view> &lines, DiagramModel &model,
+                                std::set<std::string> &declared)
 {
-    static constexpr std::array<std::string_view, 4> kFieldBlockKeywords = {
-        "type", "interface", "input", "enum"};
+    static constexpr std::array<std::string_view, 6> kBlockKeywords = {
+        "type", "interface", "input", "enum", "union", "scalar"};
+    for (const std::string_view raw : lines)
+    {
+        const std::string_view line = trim(raw);
+        for (const std::string_view keyword : kBlockKeywords)
+        {
+            if (startsWithKeyword(line, keyword))
+            {
+                const std::string name = firstIdentifier(line.substr(keyword.size()));
+                if (!name.empty())
+                {
+                    declared.insert(name);
+                    model.addNode(name);
+                }
+                break;
+            }
+        }
+    }
+}
+
+void addGraphQlUnionEdges(DiagramModel &model, std::string_view line,
+                          const std::set<std::string> &declared)
+{
+    const std::string name = firstIdentifier(line.substr(5));
+    const std::size_t eq   = line.find('=');
+    if (name.empty() || eq == std::string_view::npos)
+    {
+        return;
+    }
+    for (const std::string_view member : splitAny(line.substr(eq + 1), "|"))
+    {
+        const std::string target = firstIdentifier(member);
+        if (declared.count(target) != 0 && target != name)
+        {
+            model.addEdge(name, target);
+        }
+    }
+}
+
+// Reads a block header: remembers the block's name in `pending` and raises the
+// `implements` edge when the base is a declared type.
+void readGraphQlBlockHeader(DiagramModel &model, std::string_view line,
+                            const std::set<std::string> &declared, std::string &pending)
+{
+    static constexpr std::array<std::string_view, 4> kFieldBlockKeywords = {"type", "interface",
+                                                                            "input", "enum"};
     for (const std::string_view keyword : kFieldBlockKeywords)
     {
         if (!startsWithKeyword(line, keyword))
@@ -885,35 +955,33 @@ void openFieldBlock(std::string_view line, const std::set<std::string> &declared
         return;
     }
 }
+
+// Every `: Type` on the line is a field whose type, when declared, raises an
+// edge -- handles one-field-per-line and inline bodies like `type X { a: Y b: Z }`.
+// Enum value lines carry no colon.
+void addGraphQlFieldEdges(DiagramModel &model, std::string_view line, const std::string &current,
+                          const std::set<std::string> &declared)
+{
+    std::size_t colon = 0;
+    while ((colon = line.find(':', colon)) != std::string_view::npos)
+    {
+        const std::string fieldType = firstIdentifier(line.substr(colon + 1));
+        if (declared.count(fieldType) != 0 && fieldType != current)
+        {
+            model.addEdge(current, fieldType);
+        }
+        ++colon;
+    }
+}
 } // namespace
 
 std::optional<DiagramModel> GraphQlImporter::import(std::string_view text) const
 {
-    const std::array<std::string_view, 6> kBlockKeywords = {"type", "interface", "input",
-                                                            "enum", "union",     "scalar"};
-    const std::vector<std::string_view> lines            = splitAny(text, "\n");
+    const std::vector<std::string_view> lines = splitAny(text, "\n");
 
-    // Pass 1: every declaration is a node; remember the names so a field edge is
-    // only raised between declared types (not to scalars like String/Int).
     DiagramModel model;
     std::set<std::string> declared;
-    for (const std::string_view raw : lines)
-    {
-        const std::string_view line = trim(raw);
-        for (const std::string_view keyword : kBlockKeywords)
-        {
-            if (startsWithKeyword(line, keyword))
-            {
-                const std::string name = firstIdentifier(line.substr(keyword.size()));
-                if (!name.empty())
-                {
-                    declared.insert(name);
-                    model.addNode(name);
-                }
-                break;
-            }
-        }
-    }
+    collectGraphQlDeclarations(lines, model, declared);
 
     // Pass 2: walk the blocks; a field's return type and an `implements`/`union`
     // member that names a declared type becomes an edge.
@@ -925,24 +993,12 @@ std::optional<DiagramModel> GraphQlImporter::import(std::string_view text) const
         const std::string_view line = trim(raw);
         if (depth == 0 && startsWithKeyword(line, "union"))
         {
-            const std::string name = firstIdentifier(line.substr(5));
-            const std::size_t eq   = line.find('=');
-            if (!name.empty() && eq != std::string_view::npos)
-            {
-                for (const std::string_view member : splitAny(line.substr(eq + 1), "|"))
-                {
-                    const std::string target = firstIdentifier(member);
-                    if (declared.count(target) != 0 && target != name)
-                    {
-                        model.addEdge(name, target);
-                    }
-                }
-            }
+            addGraphQlUnionEdges(model, line, declared);
             continue;
         }
         if (depth == 0)
         {
-            openFieldBlock(line, declared, model, pending);
+            readGraphQlBlockHeader(model, line, declared, pending);
         }
         const std::size_t opens  = countChar(line, '{');
         const std::size_t closes = countChar(line, '}');
@@ -953,19 +1009,7 @@ std::optional<DiagramModel> GraphQlImporter::import(std::string_view text) const
         }
         if ((depth > 0 || entering) && !current.empty())
         {
-            // Every `: Type` on the line is a field whose type, when declared,
-            // raises an edge -- handles one-field-per-line and inline bodies
-            // like `type X { a: Y b: Z }`. Enum value lines carry no colon.
-            std::size_t colon = 0;
-            while ((colon = line.find(':', colon)) != std::string_view::npos)
-            {
-                const std::string fieldType = firstIdentifier(line.substr(colon + 1));
-                if (declared.count(fieldType) != 0 && fieldType != current)
-                {
-                    model.addEdge(current, fieldType);
-                }
-                ++colon;
-            }
+            addGraphQlFieldEdges(model, line, current, declared);
         }
         depth += static_cast<int>(opens) - static_cast<int>(closes);
         if (depth <= 0)
@@ -982,13 +1026,12 @@ std::optional<DiagramModel> GraphQlImporter::import(std::string_view text) const
     return model;
 }
 
-std::optional<DiagramModel> ProtobufImporter::import(std::string_view text) const
+namespace
 {
-    const std::vector<std::string_view> lines = splitAny(text, "\n");
-
-    // Pass 1: every message/enum (including nested) is a node.
-    DiagramModel model;
-    std::set<std::string> declared;
+// Pass 1: every message/enum (including nested) is a node.
+void collectProtobufDeclarations(const std::vector<std::string_view> &lines, DiagramModel &model,
+                                 std::set<std::string> &declared)
+{
     for (const std::string_view raw : lines)
     {
         const std::string_view line = trim(raw);
@@ -1003,42 +1046,73 @@ std::optional<DiagramModel> ProtobufImporter::import(std::string_view text) cons
             }
         }
     }
+}
 
-    // The declared type a single field statement points at, or empty when the
-    // field is a scalar or the statement is not a field. Handles `map<K,V>`
-    // (value type) and a `[repeated|optional|required] Type name = N` field.
-    const auto fieldTypeOf = [](std::string_view statement) -> std::string {
-        statement                = trim(statement);
-        const std::size_t mapPos = statement.find("map<");
-        if (mapPos != std::string_view::npos)
+// The declared type a single field statement points at, or empty when the
+// field is a scalar or the statement is not a field. Handles `map<K,V>`
+// (value type) and a `[repeated|optional|required] Type name = N` field.
+std::string protobufFieldTypeOf(std::string_view statement)
+{
+    statement                = trim(statement);
+    const std::size_t mapPos = statement.find("map<");
+    if (mapPos != std::string_view::npos)
+    {
+        const std::size_t comma = statement.find(',', mapPos);
+        return comma == std::string_view::npos ? std::string{}
+                                               : firstIdentifier(statement.substr(comma + 1));
+    }
+    if (statement.find('=') == std::string_view::npos)
+    {
+        return {};
+    }
+    std::string_view scan                                            = statement;
+    static constexpr std::array<std::string_view, 3> kFieldModifiers = {"repeated", "optional",
+                                                                        "required"};
+    for (const std::string_view modifier : kFieldModifiers)
+    {
+        if (startsWithKeyword(scan, modifier))
         {
-            const std::size_t comma = statement.find(',', mapPos);
-            return comma == std::string_view::npos ? std::string{}
-                                                   : firstIdentifier(statement.substr(comma + 1));
+            scan = trim(scan.substr(modifier.size()));
+            break;
         }
-        if (statement.find('=') == std::string_view::npos)
+    }
+    return firstIdentifier(scan);
+}
+
+// Scans the field body -- after the opening brace on a declaration line,
+// otherwise the whole line -- per `;`, so an inline `message X { A a = 1; }`
+// and a one-field-per-line body both resolve.
+void addProtobufFieldEdges(DiagramModel &model, std::string_view line, bool entering,
+                           const std::string &current, const std::set<std::string> &declared)
+{
+    std::string_view body = line;
+    if (entering)
+    {
+        const std::size_t brace = line.find('{');
+        body = brace == std::string_view::npos ? std::string_view{} : line.substr(brace + 1);
+    }
+    for (const std::string_view statement : splitAny(body, ";"))
+    {
+        const std::string fieldType = protobufFieldTypeOf(statement);
+        if (declared.count(fieldType) != 0 && fieldType != current)
         {
-            return {};
+            model.addEdge(current, fieldType);
         }
-        std::string_view scan                                            = statement;
-        static constexpr std::array<std::string_view, 3> kFieldModifiers = {"repeated", "optional",
-                                                                            "required"};
-        for (const std::string_view modifier : kFieldModifiers)
-        {
-            if (startsWithKeyword(scan, modifier))
-            {
-                scan = trim(scan.substr(modifier.size()));
-                break;
-            }
-        }
-        return firstIdentifier(scan);
-    };
+    }
+}
+} // namespace
+
+std::optional<DiagramModel> ProtobufImporter::import(std::string_view text) const
+{
+    const std::vector<std::string_view> lines = splitAny(text, "\n");
+
+    DiagramModel model;
+    std::set<std::string> declared;
+    collectProtobufDeclarations(lines, model, declared);
 
     // Pass 2: a field whose type names a declared message/enum is an edge from
     // the enclosing message. `current` follows the most recent top-level
-    // message (nested declarations still render as nodes from pass 1). Field
-    // statements are scanned per `;`, so an inline `message X { A a = 1; }` and
-    // a one-field-per-line body both resolve.
+    // message (nested declarations still render as nodes from pass 1).
     std::string current;
     int depth = 0;
     for (const std::string_view raw : lines)
@@ -1053,23 +1127,7 @@ std::optional<DiagramModel> ProtobufImporter::import(std::string_view text) cons
         }
         if (!current.empty() && (depth > 0 || entering))
         {
-            // Scan the field body -- after the opening brace on a declaration
-            // line, otherwise the whole line.
-            std::string_view body = line;
-            if (entering)
-            {
-                const std::size_t brace = line.find('{');
-                body =
-                    brace == std::string_view::npos ? std::string_view{} : line.substr(brace + 1);
-            }
-            for (const std::string_view statement : splitAny(body, ";"))
-            {
-                const std::string fieldType = fieldTypeOf(statement);
-                if (declared.count(fieldType) != 0 && fieldType != current)
-                {
-                    model.addEdge(current, fieldType);
-                }
-            }
+            addProtobufFieldEdges(model, line, entering, current, declared);
         }
         depth += static_cast<int>(countChar(line, '{')) - static_cast<int>(countChar(line, '}'));
         if (depth <= 0)

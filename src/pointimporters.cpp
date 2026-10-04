@@ -170,15 +170,10 @@ std::optional<PointCloud> importAsciiStl(std::string_view data)
         return std::nullopt;
     return cloud;
 }
-} // namespace
 
-std::optional<PointCloud> StlImporter::import(std::string_view data) const
+// Binary flavour: 80-byte header, uint32 count, 50 bytes per triangle.
+std::optional<PointCloud> importBinaryStl(std::string_view data)
 {
-    // ASCII flavour: "solid" plus at least one "facet".
-    if (data.rfind("solid", 0) == 0 && data.find("facet") != std::string_view::npos)
-        return importAsciiStl(data);
-
-    // Binary flavour: 80-byte header, uint32 count, 50 bytes per triangle.
     if (data.size() < 84)
         return std::nullopt;
     const auto *bytes                 = reinterpret_cast<const unsigned char *>(data.data());
@@ -207,26 +202,35 @@ std::optional<PointCloud> StlImporter::import(std::string_view data) const
         return std::nullopt;
     return cloud;
 }
+} // namespace
 
-std::optional<PointCloud> PlyImporter::import(std::string_view data) const
+std::optional<PointCloud> StlImporter::import(std::string_view data) const
 {
-    if (data.rfind("ply", 0) != 0)
-        return std::nullopt;
-    const std::size_t headerEnd = data.find("end_header");
-    if (headerEnd == std::string_view::npos)
-        return std::nullopt;
-    const std::string_view header = data.substr(0, headerEnd);
-    if (header.find("format ascii") == std::string_view::npos)
-        return std::nullopt; // binary PLY stays out of the v1 scope
+    // ASCII flavour: "solid" plus at least one "facet".
+    if (data.rfind("solid", 0) == 0 && data.find("facet") != std::string_view::npos)
+        return importAsciiStl(data);
+    return importBinaryStl(data);
+}
 
-    // Parse the header: element order, counts, and where x/y/z sit among the
-    // vertex properties.
+namespace
+{
+struct PlyHeader
+{
     std::size_t vertexCount = 0;
     std::size_t faceCount   = 0;
-    int xSlot = -1, ySlot = -1, zSlot = -1;
+    int xSlot               = -1;
+    int ySlot               = -1;
+    int zSlot               = -1;
+    bool vertexFirst        = true;
+};
+
+// Parses the header: element order, counts, and where x/y/z sit among the
+// vertex properties.
+PlyHeader parsePlyHeader(std::string_view header)
+{
+    PlyHeader result;
     int propertySlot     = 0;
     bool inVertexElement = false;
-    bool vertexFirst     = true;
     bool sawFaceElement  = false;
     forEachLine(header, [&](std::string_view line) {
         const auto tokens = splitWhitespace(line);
@@ -238,53 +242,54 @@ std::optional<PointCloud> PlyImporter::import(std::string_view data) const
                 long parsed = 0;
                 (void)std::from_chars(tokens[2].data(), tokens[2].data() + tokens[2].size(),
                                       parsed);
-                vertexCount = static_cast<std::size_t>(std::max(0L, parsed));
-                vertexFirst = !sawFaceElement;
+                result.vertexCount = static_cast<std::size_t>(std::max(0L, parsed));
+                result.vertexFirst = !sawFaceElement;
             } else if (tokens[1] == "face")
             {
                 long parsed = 0;
                 (void)std::from_chars(tokens[2].data(), tokens[2].data() + tokens[2].size(),
                                       parsed);
-                faceCount      = static_cast<std::size_t>(std::max(0L, parsed));
-                sawFaceElement = true;
+                result.faceCount = static_cast<std::size_t>(std::max(0L, parsed));
+                sawFaceElement   = true;
             }
             propertySlot = 0;
         } else if (inVertexElement && tokens.size() >= 3 && tokens[0] == "property" &&
                    tokens[1] != "list")
         {
             if (tokens[2] == "x")
-                xSlot = propertySlot;
+                result.xSlot = propertySlot;
             else if (tokens[2] == "y")
-                ySlot = propertySlot;
+                result.ySlot = propertySlot;
             else if (tokens[2] == "z")
-                zSlot = propertySlot;
+                result.zSlot = propertySlot;
             ++propertySlot;
         }
     });
-    if (vertexCount == 0 || xSlot < 0 || ySlot < 0 || zSlot < 0 || !vertexFirst)
-        return std::nullopt;
+    return result;
+}
 
+PointCloud readPlyBody(std::string_view body, const PlyHeader &header)
+{
     PointCloud cloud;
     std::size_t consumedVertices = 0;
     std::size_t consumedFaces    = 0;
-    const std::string_view body  = data.substr(data.find('\n', headerEnd) + 1);
     forEachLine(body, [&](std::string_view line) {
         if (line.empty())
             return;
         const auto tokens = splitWhitespace(line);
-        if (consumedVertices < vertexCount)
+        if (consumedVertices < header.vertexCount)
         {
-            const int maxSlot = std::max({xSlot, ySlot, zSlot});
+            const int maxSlot = std::max({header.xSlot, header.ySlot, header.zSlot});
             if (static_cast<int>(tokens.size()) <= maxSlot)
                 return;
             Vec3f point;
-            if (parseFloat(tokens[static_cast<std::size_t>(xSlot)], point.x) &&
-                parseFloat(tokens[static_cast<std::size_t>(ySlot)], point.y) &&
-                parseFloat(tokens[static_cast<std::size_t>(zSlot)], point.z) &&
+            if (parseFloat(tokens[static_cast<std::size_t>(header.xSlot)], point.x) &&
+                parseFloat(tokens[static_cast<std::size_t>(header.ySlot)], point.y) &&
+                parseFloat(tokens[static_cast<std::size_t>(header.zSlot)], point.z) &&
                 cloud.points.size() < kMaxPoints)
                 cloud.points.push_back(point);
             ++consumedVertices;
-        } else if (consumedFaces < faceCount)
+        } else if (consumedFaces < header.faceCount)
         {
             if (tokens.empty())
                 return;
@@ -301,6 +306,27 @@ std::optional<PointCloud> PlyImporter::import(std::string_view data) const
             ++consumedFaces;
         }
     });
+    return cloud;
+}
+} // namespace
+
+std::optional<PointCloud> PlyImporter::import(std::string_view data) const
+{
+    if (data.rfind("ply", 0) != 0)
+        return std::nullopt;
+    const std::size_t headerEnd = data.find("end_header");
+    if (headerEnd == std::string_view::npos)
+        return std::nullopt;
+    const std::string_view headerText = data.substr(0, headerEnd);
+    if (headerText.find("format ascii") == std::string_view::npos)
+        return std::nullopt; // binary PLY stays out of the v1 scope
+
+    const PlyHeader header = parsePlyHeader(headerText);
+    if (header.vertexCount == 0 || header.xSlot < 0 || header.ySlot < 0 || header.zSlot < 0 ||
+        !header.vertexFirst)
+        return std::nullopt;
+
+    PointCloud cloud = readPlyBody(data.substr(data.find('\n', headerEnd) + 1), header);
     if (cloud.points.empty())
         return std::nullopt;
     return cloud;

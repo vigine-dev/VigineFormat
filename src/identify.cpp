@@ -72,12 +72,10 @@ std::string_view formatName(KnownFormat format) noexcept
     }
 }
 
-KnownFormat identifyContent(std::string_view content) noexcept
+namespace
 {
-    if (content.empty())
-        return KnownFormat::Unknown;
-
-    // Binary magic first -- it cannot be confused with any text probe.
+KnownFormat identifyBinaryMagic(std::string_view content) noexcept
+{
     if (content.rfind("%PDF-", 0) == 0)
         return KnownFormat::Pdf;
     if (content.rfind("VOX ", 0) == 0)
@@ -86,29 +84,11 @@ KnownFormat identifyContent(std::string_view content) noexcept
         return KnownFormat::Ply;
     if (content.rfind("solid", 0) == 0 && contains(content, "facet"))
         return KnownFormat::Stl;
+    return KnownFormat::Unknown;
+}
 
-    const std::size_t firstGlyph = content.find_first_not_of(" \t\r\n");
-    if (firstGlyph == std::string_view::npos)
-        return KnownFormat::Unknown;
-    const char lead = content[firstGlyph];
-
-    // A schema-on-top wins over its carrier: an OpenAPI spec IS json or yaml,
-    // but the more specific verdict is the useful one.
-    if (contains(content, "\"openapi\"") || contains(content, "openapi:") ||
-        contains(content, "\"swagger\"") || contains(content, "swagger:"))
-        return KnownFormat::OpenApi;
-
-    if (lead == '{' || lead == '[')
-        return KnownFormat::Json;
-    if (contains(content, "@startuml") || contains(content, "<|--"))
-        return KnownFormat::PlantUml;
-    if (contains(content, "<graphml"))
-        return KnownFormat::GraphMl;
-    if (lead == '<')
-        return KnownFormat::Xml;
-    if (content.compare(firstGlyph, 3, "---") == 0)
-        return KnownFormat::Yaml;
-
+KnownFormat identifyDeclarativeText(std::string_view content, std::size_t firstGlyph) noexcept
+{
     const std::string lower = asciiLower(content);
     if (contains(lower, "create table"))
         return KnownFormat::Sql;
@@ -137,6 +117,41 @@ KnownFormat identifyContent(std::string_view content) noexcept
         return KnownFormat::Dot;
 
     return KnownFormat::Unknown;
+}
+} // namespace
+
+KnownFormat identifyContent(std::string_view content) noexcept
+{
+    if (content.empty())
+        return KnownFormat::Unknown;
+
+    // Binary magic first -- it cannot be confused with any text probe.
+    if (const KnownFormat binary = identifyBinaryMagic(content); binary != KnownFormat::Unknown)
+        return binary;
+
+    const std::size_t firstGlyph = content.find_first_not_of(" \t\r\n");
+    if (firstGlyph == std::string_view::npos)
+        return KnownFormat::Unknown;
+    const char lead = content[firstGlyph];
+
+    // A schema-on-top wins over its carrier: an OpenAPI spec IS json or yaml,
+    // but the more specific verdict is the useful one.
+    if (contains(content, "\"openapi\"") || contains(content, "openapi:") ||
+        contains(content, "\"swagger\"") || contains(content, "swagger:"))
+        return KnownFormat::OpenApi;
+
+    if (lead == '{' || lead == '[')
+        return KnownFormat::Json;
+    if (contains(content, "@startuml") || contains(content, "<|--"))
+        return KnownFormat::PlantUml;
+    if (contains(content, "<graphml"))
+        return KnownFormat::GraphMl;
+    if (lead == '<')
+        return KnownFormat::Xml;
+    if (content.compare(firstGlyph, 3, "---") == 0)
+        return KnownFormat::Yaml;
+
+    return identifyDeclarativeText(content, firstGlyph);
 }
 
 KnownFormat identifyExtension(std::string_view fileName) noexcept
