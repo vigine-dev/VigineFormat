@@ -142,37 +142,41 @@ std::optional<PointCloud> ObjImporter::import(std::string_view data) const
     return cloud;
 }
 
+namespace
+{
+std::optional<PointCloud> importAsciiStl(std::string_view data)
+{
+    PointCloud cloud;
+    std::vector<std::uint32_t> triangle;
+    forEachLine(data, [&](std::string_view line) {
+        if (cloud.points.size() >= kMaxPoints)
+            return;
+        const auto tokens = splitWhitespace(line);
+        if (tokens.size() < 4 || tokens[0] != "vertex")
+            return;
+        Vec3f point;
+        if (!parseFloat(tokens[1], point.x) || !parseFloat(tokens[2], point.y) ||
+            !parseFloat(tokens[3], point.z))
+            return;
+        triangle.push_back(static_cast<std::uint32_t>(cloud.points.size()));
+        cloud.points.push_back(point);
+        if (triangle.size() == 3)
+        {
+            addPolygonEdges(cloud, triangle);
+            triangle.clear();
+        }
+    });
+    if (cloud.points.empty())
+        return std::nullopt;
+    return cloud;
+}
+} // namespace
+
 std::optional<PointCloud> StlImporter::import(std::string_view data) const
 {
     // ASCII flavour: "solid" plus at least one "facet".
     if (data.rfind("solid", 0) == 0 && data.find("facet") != std::string_view::npos)
-    {
-        PointCloud cloud;
-        std::vector<std::uint32_t> triangle;
-        forEachLine(data, [&](std::string_view line) {
-            if (cloud.points.size() >= kMaxPoints)
-                return;
-            const auto tokens = splitWhitespace(line);
-            if (tokens.size() >= 4 && tokens[0] == "vertex")
-            {
-                Vec3f point;
-                if (parseFloat(tokens[1], point.x) && parseFloat(tokens[2], point.y) &&
-                    parseFloat(tokens[3], point.z))
-                {
-                    triangle.push_back(static_cast<std::uint32_t>(cloud.points.size()));
-                    cloud.points.push_back(point);
-                    if (triangle.size() == 3)
-                    {
-                        addPolygonEdges(cloud, triangle);
-                        triangle.clear();
-                    }
-                }
-            }
-        });
-        if (cloud.points.empty())
-            return std::nullopt;
-        return cloud;
-    }
+        return importAsciiStl(data);
 
     // Binary flavour: 80-byte header, uint32 count, 50 bytes per triangle.
     if (data.size() < 84)

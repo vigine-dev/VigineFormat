@@ -168,6 +168,26 @@ ArrowMatch findArrow(std::string_view line)
     }
     return best;
 }
+
+std::string bracketLabel(std::string_view stmt, std::size_t bracket)
+{
+    const std::size_t labelPos = stmt.find("label", bracket);
+    if (labelPos == std::string_view::npos)
+    {
+        return {};
+    }
+    const std::size_t eq = stmt.find('=', labelPos);
+    if (eq == std::string_view::npos)
+    {
+        return {};
+    }
+    std::size_t valueEnd = stmt.find_first_of(",]", eq + 1);
+    if (valueEnd == std::string_view::npos)
+    {
+        valueEnd = stmt.size();
+    }
+    return unquote(stmt.substr(eq + 1, valueEnd - eq - 1));
+}
 } // namespace
 
 std::optional<DiagramModel> DotImporter::import(std::string_view text) const
@@ -219,21 +239,7 @@ std::optional<DiagramModel> DotImporter::import(std::string_view text) const
         if (bracket != std::string_view::npos)
         {
             const std::string id       = unquote(trim(stmt.substr(0, bracket)));
-            const std::size_t labelPos = stmt.find("label", bracket);
-            std::string label;
-            if (labelPos != std::string_view::npos)
-            {
-                const std::size_t eq = stmt.find('=', labelPos);
-                if (eq != std::string_view::npos)
-                {
-                    std::size_t valueEnd = stmt.find_first_of(",]", eq + 1);
-                    if (valueEnd == std::string_view::npos)
-                    {
-                        valueEnd = stmt.size();
-                    }
-                    label = unquote(stmt.substr(eq + 1, valueEnd - eq - 1));
-                }
-            }
+            const std::string label    = bracketLabel(stmt, bracket);
             model.addNode(id, label);
             continue;
         }
@@ -852,6 +858,35 @@ std::optional<DiagramModel> FlameGraphImporter::import(std::string_view text) co
     return model;
 }
 
+namespace
+{
+void openFieldBlock(std::string_view line, const std::set<std::string> &declared,
+                    DiagramModel &model, std::string &pending)
+{
+    static constexpr std::array<std::string_view, 4> kFieldBlockKeywords = {
+        "type", "interface", "input", "enum"};
+    for (const std::string_view keyword : kFieldBlockKeywords)
+    {
+        if (!startsWithKeyword(line, keyword))
+        {
+            continue;
+        }
+        pending                = firstIdentifier(line.substr(keyword.size()));
+        const std::size_t impl = line.find("implements");
+        if (impl == std::string_view::npos)
+        {
+            return;
+        }
+        const std::string base = firstIdentifier(line.substr(impl + 10));
+        if (declared.count(base) != 0 && base != pending)
+        {
+            model.addEdge(pending, base);
+        }
+        return;
+    }
+}
+} // namespace
+
 std::optional<DiagramModel> GraphQlImporter::import(std::string_view text) const
 {
     const std::array<std::string_view, 6> kBlockKeywords = {"type", "interface", "input",
@@ -907,25 +942,7 @@ std::optional<DiagramModel> GraphQlImporter::import(std::string_view text) const
         }
         if (depth == 0)
         {
-            static constexpr std::array<std::string_view, 4> kFieldBlockKeywords = {
-                "type", "interface", "input", "enum"};
-            for (const std::string_view keyword : kFieldBlockKeywords)
-            {
-                if (startsWithKeyword(line, keyword))
-                {
-                    pending                = firstIdentifier(line.substr(keyword.size()));
-                    const std::size_t impl = line.find("implements");
-                    if (impl != std::string_view::npos)
-                    {
-                        const std::string base = firstIdentifier(line.substr(impl + 10));
-                        if (declared.count(base) != 0 && base != pending)
-                        {
-                            model.addEdge(pending, base);
-                        }
-                    }
-                    break;
-                }
-            }
+            openFieldBlock(line, declared, model, pending);
         }
         const std::size_t opens  = countChar(line, '{');
         const std::size_t closes = countChar(line, '}');
