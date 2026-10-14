@@ -1,5 +1,6 @@
 #include "vigine/format/pointcloud.h"
 
+#include <algorithm>
 #include <cctype>
 #include <charconv>
 #include <cstring>
