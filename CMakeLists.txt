@@ -37,6 +37,8 @@ endif()
 
 add_library(VigineFormat STATIC ${VIGINEFORMAT_SOURCES} ${VIGINEFORMAT_HEADERS})
 add_library(VigineFormat::VigineFormat ALIAS VigineFormat)
+# The engine is a shared library that links this one in.
+set_target_properties(VigineFormat PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(VigineFormat
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -56,7 +58,7 @@ if(VIGINEFORMAT_WITH_PDF)
     add_library(vigineformat_pdfio STATIC ${VIGINEFORMAT_PDFIO_SOURCES})
     target_link_libraries(vigineformat_pdfio PRIVATE ZLIB::ZLIB)
     target_include_directories(vigineformat_pdfio PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/pdfio)
-    set_target_properties(vigineformat_pdfio PROPERTIES C_STANDARD 11)
+    set_target_properties(vigineformat_pdfio PROPERTIES C_STANDARD 11 POSITION_INDEPENDENT_CODE ON)
     target_link_libraries(VigineFormat PRIVATE vigineformat_pdfio)
     target_compile_definitions(VigineFormat PRIVATE VIGINEFORMAT_HAS_PDFIO=1)
 endif()
