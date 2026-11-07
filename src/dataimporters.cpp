@@ -12,7 +12,8 @@
 #define RYML_SINGLE_HDR_DEFINE_NOW
 #include <ryml/rapidyaml.hpp>
 
-#define TOML_EXCEPTIONS 0
+// toml++ with exceptions, the setting VigineConfig uses: one program holds both, and toml++'s inner classes
+// differ between the two settings under one name.
 #include <nlohmann/json.hpp>
 #include <toml++/toml.hpp>
 
@@ -99,9 +100,14 @@ std::optional<DiagramModel> YamlTreeImporter::import(std::string_view text) cons
 
 std::optional<DiagramModel> TomlTreeImporter::import(std::string_view text) const
 {
-    const toml::parse_result parsed = toml::parse(text);
-    if (!parsed)
+    toml::table parsed;
+    try
+    {
+        parsed = toml::parse(text);
+    } catch (const toml::parse_error &)
+    {
         return std::nullopt;
+    }
 
     constexpr int kMaxDepth         = 12;
     constexpr std::size_t kMaxNodes = 256;
@@ -144,7 +150,7 @@ std::optional<DiagramModel> TomlTreeImporter::import(std::string_view text) cons
                 }
             }
         };
-    walk(parsed.table(), "n0", "table", 0);
+    walk(parsed, "n0", "table", 0);
 
     if (model.nodes.size() < 2)
         return std::nullopt; // an empty document carries no structure to draw
