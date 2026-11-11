@@ -1,5 +1,7 @@
 #pragma once
 
+#include "vigine/format/vigineformat_export.h"
+
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -12,36 +14,63 @@ namespace vigine::format
 // developer diagram format (Mermaid, DOT, UML, an ER diagram, a call graph,
 // ...) imports into this one model, which then feeds the generic layout +
 // renderer. The engine assigns no meaning to ids/labels/kinds -- a consumer
-// maps them. ENCAP EXEMPT: pure value aggregates.
-struct DiagramNode
+// maps them.
+class VIGINEFORMAT_API DiagramNode
 {
-    std::string id;
-    std::string label;
-    std::uint32_t kind{0};
+  public:
+    DiagramNode() = default;
+    DiagramNode(std::string id, std::string label, std::uint32_t kind = 0);
+
+    [[nodiscard]] const std::string &id() const noexcept { return _id; }
+    [[nodiscard]] const std::string &label() const noexcept { return _label; }
+    [[nodiscard]] std::uint32_t kind() const noexcept { return _kind; }
+
+    void setLabel(std::string_view label);
+    void setKind(std::uint32_t kind) noexcept { _kind = kind; }
+
+  private:
+    std::string _id;
+    std::string _label;
+    std::uint32_t _kind{0};
 };
 
-struct DiagramEdge
+class VIGINEFORMAT_API DiagramEdge
 {
-    std::string from;
-    std::string to;
-    std::string label;
-    bool directed{true};
+  public:
+    DiagramEdge() = default;
+    DiagramEdge(std::string from, std::string to, std::string label, bool directed = true);
+
+    [[nodiscard]] const std::string &from() const noexcept { return _from; }
+    [[nodiscard]] const std::string &to() const noexcept { return _to; }
+    [[nodiscard]] const std::string &label() const noexcept { return _label; }
+    [[nodiscard]] bool directed() const noexcept { return _directed; }
+
+  private:
+    std::string _from;
+    std::string _to;
+    std::string _label;
+    bool _directed{true};
 };
 
-struct DiagramModel
+class VIGINEFORMAT_API DiagramModel
 {
-    std::vector<DiagramNode> nodes;
-    std::vector<DiagramEdge> edges;
+  public:
+    [[nodiscard]] const std::vector<DiagramNode> &nodes() const noexcept { return _nodes; }
+    [[nodiscard]] const std::vector<DiagramEdge> &edges() const noexcept { return _edges; }
 
     // Adds a node if absent (or fills a missing label), returning nothing.
     void addNode(std::string_view id, std::string_view label = std::string_view{});
     void addEdge(std::string_view from, std::string_view to, std::string_view label = {},
                  bool directed = true);
+
+  private:
+    std::vector<DiagramNode> _nodes;
+    std::vector<DiagramEdge> _edges;
 };
 
 // Parses one diagram text format into the neutral model. A per-format
 // importer implements this; the engine never special-cases a format.
-class IDiagramImporter
+class VIGINEFORMAT_API IDiagramImporter
 {
   public:
     virtual ~IDiagramImporter()                          = default;

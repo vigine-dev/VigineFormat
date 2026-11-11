@@ -15,6 +15,13 @@ Two layers:
    dump), GraphQL SDL, Protobuf, SQL DDL (entity-relationship), and folded
    flame-graph stacks.
 
+The library is shared and speaks only through interfaces: an importer is
+obtained from a factory (`createDotImporter()`, `createPdfImporter()`,
+`createObjImporter()`, ...) as `IDiagramImporter`, `IDocumentImporter` or
+`IPointCloudImporter`, and the model types keep their data private behind
+accessors. Only symbols marked `VIGINEFORMAT_API` are exported; the bundled
+third-party code stays hidden inside on every system.
+
 No third-party type appears in a public header, so backends can be swapped
 without touching consumers. Heavier format backends (YAML, PDF, 3D meshes)
 arrive as vendored submodules behind per-family CMake options, keeping the

@@ -1,4 +1,4 @@
-#include "vigine/format/diagramimporters.h"
+#include "diagramimporterclasses.h"
 
 #include <algorithm>
 #include <cctype>
@@ -152,7 +152,7 @@ std::optional<DiagramModel> TomlTreeImporter::import(std::string_view text) cons
         };
     walk(parsed, "n0", "table", 0);
 
-    if (model.nodes.size() < 2)
+    if (model.nodes().size() < 2)
         return std::nullopt; // an empty document carries no structure to draw
     return model;
 }
@@ -212,7 +212,7 @@ std::optional<DiagramModel> OpenApiImporter::import(std::string_view text) const
         }
     }
 
-    if (model.nodes.size() < 2)
+    if (model.nodes().size() < 2)
         return std::nullopt;
     return model;
 }
