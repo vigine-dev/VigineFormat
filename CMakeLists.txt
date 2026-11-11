@@ -122,6 +122,14 @@ if(VIGINEFORMAT_WITH_PDF)
     target_compile_definitions(VigineFormat PRIVATE VIGINEFORMAT_HAS_PDFIO=1)
 endif()
 
+# Linux: besides hiding the archive, a version script exports only the vigine
+# symbols, so the standard library's weak template instantiations stay private
+# too. macOS (-load_hidden above) and Windows (dllexport only) need no list.
+if(UNIX AND NOT APPLE)
+    target_link_options(VigineFormat PRIVATE "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/cmake/vigineformat.map")
+    set_property(TARGET VigineFormat APPEND PROPERTY LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/vigineformat.map)
+endif()
+
 # --- tests ---------------------------------------------------------------
 # The tests move to VigineUnitTest (task 18242), which brings them back.
 if(VIGINEFORMAT_BUILD_TESTS)
