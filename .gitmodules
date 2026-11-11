@@ -1,9 +1,16 @@
-[submodule "external/googletest"]
-	path = external/googletest
-	url = https://github.com/vigine-dev/googletest.git
 [submodule "external/tomlplusplus"]
 	path = external/tomlplusplus
 	url = https://github.com/vigine-dev/tomlplusplus.git
+	branch = vigine/main
 [submodule "external/pdfio"]
 	path = external/pdfio
 	url = https://github.com/vigine-dev/pdfio.git
+	branch = vigine/main
+[submodule "external/json"]
+	path = external/json
+	url = https://github.com/vigine-dev/json.git
+	branch = vigine/main
+[submodule "external/rapidyaml"]
+	path = external/rapidyaml
+	url = https://github.com/vigine-dev/rapidyaml.git
+	branch = vigine/main

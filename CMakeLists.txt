@@ -9,7 +9,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(VIGINEFORMAT_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-option(VIGINEFORMAT_BUILD_TESTS "Build VigineFormat tests" ON)
+# The tests move to VigineUnitTest (task 18242); until then they stay off because googletest left external/.
+option(VIGINEFORMAT_BUILD_TESTS "Build VigineFormat tests" OFF)
 option(VIGINEFORMAT_WITH_PDF "Build the PDF backend (vendored pdfio + system zlib)" ON)
 
 if(NOT DEFINED CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
@@ -35,6 +36,7 @@ if(VIGINEFORMAT_WITH_PDF)
     endif()
 endif()
 
+set(VIGINEFORMAT_GENERATED_INCLUDE ${CMAKE_CURRENT_BINARY_DIR}/generated)
 add_library(VigineFormat STATIC ${VIGINEFORMAT_SOURCES} ${VIGINEFORMAT_HEADERS})
 add_library(VigineFormat::VigineFormat ALIAS VigineFormat)
 # The engine is a shared library that links this one in.
@@ -42,11 +44,31 @@ set_target_properties(VigineFormat PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(VigineFormat
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
-    # The vendored single-header JSON parser stays an implementation detail of
-    # the .cpp files; consumers never see it.
+    # The third-party libraries stay implementation details of the .cpp
+    # files; consumers never see them.
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/tomlplusplus/include)
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/json/single_include
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/tomlplusplus/include
+    PRIVATE ${VIGINEFORMAT_GENERATED_INCLUDE})
+
+# --- rapidyaml -------------------------------------------------------------
+# The sources include <ryml/rapidyaml.hpp>, the single-header amalgamation. It
+# is generated from the rapidyaml fork's own sources (its tools/amalgamate.py,
+# every option stated) rather than compiled as a library: the amalgamation is
+# byte-identical to the release header the code was written against, so the
+# behaviour, including RYML_SINGLE_HDR_DEFINE_NOW in one translation unit,
+# does not change.
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+set(VIGINEFORMAT_RYML_HEADER ${VIGINEFORMAT_GENERATED_INCLUDE}/ryml/rapidyaml.hpp)
+add_custom_command(
+    OUTPUT ${VIGINEFORMAT_RYML_HEADER}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${VIGINEFORMAT_GENERATED_INCLUDE}/ryml
+    COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/external/rapidyaml/tools/amalgamate.py
+            ${VIGINEFORMAT_RYML_HEADER} --c4core --fastfloat --stl -e tree
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/external/rapidyaml/tools/amalgamate.py
+    VERBATIM)
+add_custom_target(vigineformat_ryml_header DEPENDS ${VIGINEFORMAT_RYML_HEADER})
+add_dependencies(VigineFormat vigineformat_ryml_header)
 
 # --- PDF backend ----------------------------------------------------------
 # pdfio is a small plain-C library with no CMake of its own: its sources
@@ -64,17 +86,7 @@ if(VIGINEFORMAT_WITH_PDF)
 endif()
 
 # --- tests ---------------------------------------------------------------
+# The tests move to VigineUnitTest (task 18242), which brings them back.
 if(VIGINEFORMAT_BUILD_TESTS)
-    set(gtest_force_shared_crt ON CACHE BOOL "Use shared CRT for GoogleTest" FORCE)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/googletest ${CMAKE_BINARY_DIR}/googletest EXCLUDE_FROM_ALL)
-    enable_testing()
-    file(GLOB VIGINEFORMAT_TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/test/*_test.cpp)
-    if(NOT VIGINEFORMAT_WITH_PDF)
-        list(REMOVE_ITEM VIGINEFORMAT_TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/test/pdf_test.cpp)
-    endif()
-    add_executable(vigineformat-test ${VIGINEFORMAT_TEST_SOURCES})
-    target_link_libraries(vigineformat-test PRIVATE VigineFormat gtest gtest_main)
-    set_target_properties(vigineformat-test PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-    include(GoogleTest)
-    gtest_discover_tests(vigineformat-test DISCOVERY_TIMEOUT 60 DISCOVERY_MODE PRE_TEST)
+    message(FATAL_ERROR "VigineFormat holds no test framework; its tests come from VigineUnitTest")
 endif()
