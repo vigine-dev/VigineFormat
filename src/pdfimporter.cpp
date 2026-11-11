@@ -1,4 +1,4 @@
-#include "vigine/format/documentimporters.h"
+#include "pdfimporterclass.h"
 
 // Without the vendored pdfio backend (no zlib on the host) the importer
 // still links everywhere and simply reports "cannot parse"; consumers keep
@@ -166,7 +166,7 @@ std::optional<DiagramModel> PdfImporter::importFile(const std::string &path,
     }
     pdfioFileClose(pdf);
 
-    if (model.nodes.size() < 2)
+    if (model.nodes().size() < 2)
         return std::nullopt; // no pages resolved -- nothing to draw
     return model;
 }

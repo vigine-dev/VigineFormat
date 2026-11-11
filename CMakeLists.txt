@@ -37,19 +37,41 @@ if(VIGINEFORMAT_WITH_PDF)
 endif()
 
 set(VIGINEFORMAT_GENERATED_INCLUDE ${CMAKE_CURRENT_BINARY_DIR}/generated)
-add_library(VigineFormat STATIC ${VIGINEFORMAT_SOURCES} ${VIGINEFORMAT_HEADERS})
+# VigineFormat is a shared library: it exports only its own interfaces,
+# factories and value types (marked VIGINEFORMAT_API); everything else,
+# including the bundled third-party code, stays hidden inside.
+add_library(VigineFormat SHARED ${VIGINEFORMAT_SOURCES} ${VIGINEFORMAT_HEADERS})
 add_library(VigineFormat::VigineFormat ALIAS VigineFormat)
-# The engine is a shared library that links this one in.
-set_target_properties(VigineFormat PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+include(GenerateExportHeader)
+generate_export_header(VigineFormat
+    BASE_NAME VIGINEFORMAT
+    EXPORT_MACRO_NAME VIGINEFORMAT_API
+    EXPORT_FILE_NAME ${VIGINEFORMAT_GENERATED_INCLUDE}/vigine/format/vigineformat_export.h)
+
+# Visibility, stated for every system rather than left to the defaults:
+#  - hidden by default for C and C++ (a symbol is exported only when marked VIGINEFORMAT_API);
+#  - inline member functions hidden as well;
+#  - on Windows nothing is exported unless dllexport-marked (no export-all).
+set_target_properties(VigineFormat PROPERTIES
+    C_VISIBILITY_PRESET hidden
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON
+    WINDOWS_EXPORT_ALL_SYMBOLS OFF
+    POSITION_INDEPENDENT_CODE ON)
+# A private STL member in an exported class is intended: the data is not part of the ABI contract.
+if(MSVC)
+    target_compile_options(VigineFormat PUBLIC /wd4251)
+endif()
 
 target_include_directories(VigineFormat
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    PUBLIC $<BUILD_INTERFACE:${VIGINEFORMAT_GENERATED_INCLUDE}>
     # The third-party libraries stay implementation details of the .cpp
     # files; consumers never see them.
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/json/single_include
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/tomlplusplus/include
-    PRIVATE ${VIGINEFORMAT_GENERATED_INCLUDE})
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/tomlplusplus/include)
 
 # --- rapidyaml -------------------------------------------------------------
 # The sources include <ryml/rapidyaml.hpp>, the single-header amalgamation. It
@@ -81,7 +103,22 @@ if(VIGINEFORMAT_WITH_PDF)
     target_link_libraries(vigineformat_pdfio PRIVATE ZLIB::ZLIB)
     target_include_directories(vigineformat_pdfio PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/pdfio)
     set_target_properties(vigineformat_pdfio PROPERTIES C_STANDARD 11 POSITION_INDEPENDENT_CODE ON)
-    target_link_libraries(VigineFormat PRIVATE vigineformat_pdfio)
+    set_target_properties(vigineformat_pdfio PROPERTIES C_VISIBILITY_PRESET hidden)
+    add_dependencies(VigineFormat vigineformat_pdfio)
+    target_link_libraries(VigineFormat PRIVATE ZLIB::ZLIB)
+    target_include_directories(VigineFormat PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/pdfio)
+    # pdfio is compiled in and none of its symbols may leave the library:
+    #  - macOS: -load_hidden pulls the archive in with every symbol private;
+    #  - Linux: --exclude-libs,ALL keeps the archive's symbols out of the dynamic table;
+    #  - Windows: a DLL exports only dllexport-marked symbols, so the archive links in as is.
+    if(APPLE)
+        target_link_options(VigineFormat PRIVATE "LINKER:-load_hidden,$<TARGET_FILE:vigineformat_pdfio>")
+    elseif(UNIX)
+        target_link_libraries(VigineFormat PRIVATE vigineformat_pdfio)
+        target_link_options(VigineFormat PRIVATE "LINKER:--exclude-libs,ALL")
+    else()
+        target_link_libraries(VigineFormat PRIVATE vigineformat_pdfio)
+    endif()
     target_compile_definitions(VigineFormat PRIVATE VIGINEFORMAT_HAS_PDFIO=1)
 endif()
 

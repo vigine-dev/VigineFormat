@@ -1,4 +1,4 @@
-#include "vigine/format/pointcloud.h"
+#include "pointimporterclasses.h"
 
 #include <algorithm>
 #include <cctype>
@@ -70,6 +70,15 @@ bool parseFloat(std::string_view token, float &out)
     return parseEnd != buffer;
 }
 
+bool parseVec3(std::string_view xToken, std::string_view yToken, std::string_view zToken, Vec3f &out)
+{
+    float x = 0.0f, y = 0.0f, z = 0.0f;
+    if (!parseFloat(xToken, x) || !parseFloat(yToken, y) || !parseFloat(zToken, z))
+        return false;
+    out = Vec3f{x, y, z};
+    return true;
+}
+
 bool parseIndex(std::string_view token, long &out)
 {
     // OBJ face tokens may carry attribute slashes: `7/1/3` -> 7.
@@ -82,12 +91,12 @@ bool parseIndex(std::string_view token, long &out)
 
 void addPolygonEdges(PointCloud &cloud, const std::vector<std::uint32_t> &polygon)
 {
-    if (polygon.size() < 2 || cloud.edges.size() >= kMaxEdges)
+    if (polygon.size() < 2 || cloud.edges().size() >= kMaxEdges)
         return;
     for (std::size_t index = 0; index + 1 < polygon.size(); ++index)
-        cloud.edges.emplace_back(polygon[index], polygon[index + 1]);
+        cloud.addEdge(polygon[index], polygon[index + 1]);
     if (polygon.size() > 2)
-        cloud.edges.emplace_back(polygon.back(), polygon.front());
+        cloud.addEdge(polygon.back(), polygon.front());
 }
 
 std::uint32_t readU32LE(const unsigned char *bytes)
@@ -110,15 +119,14 @@ std::optional<PointCloud> ObjImporter::import(std::string_view data) const
 {
     PointCloud cloud;
     forEachLine(data, [&](std::string_view line) {
-        if (line.empty() || line.front() == '#' || cloud.points.size() >= kMaxPoints)
+        if (line.empty() || line.front() == '#' || cloud.points().size() >= kMaxPoints)
             return;
         const auto tokens = splitWhitespace(line);
         if (tokens.size() >= 4 && tokens[0] == "v")
         {
             Vec3f point;
-            if (parseFloat(tokens[1], point.x) && parseFloat(tokens[2], point.y) &&
-                parseFloat(tokens[3], point.z))
-                cloud.points.push_back(point);
+            if (parseVec3(tokens[1], tokens[2], tokens[3], point))
+                cloud.addPoint(point);
         } else if (tokens.size() >= 3 && tokens[0] == "f")
         {
             std::vector<std::uint32_t> polygon;
@@ -130,15 +138,15 @@ std::optional<PointCloud> ObjImporter::import(std::string_view data) const
                     return;
                 // OBJ indices are 1-based; negatives count back from the end.
                 const long resolved =
-                    vertex > 0 ? vertex - 1 : static_cast<long>(cloud.points.size()) + vertex;
-                if (resolved < 0 || resolved >= static_cast<long>(cloud.points.size()))
+                    vertex > 0 ? vertex - 1 : static_cast<long>(cloud.points().size()) + vertex;
+                if (resolved < 0 || resolved >= static_cast<long>(cloud.points().size()))
                     return;
                 polygon.push_back(static_cast<std::uint32_t>(resolved));
             }
             addPolygonEdges(cloud, polygon);
         }
     });
-    if (cloud.points.empty())
+    if (cloud.points().empty())
         return std::nullopt;
     return cloud;
 }
@@ -150,24 +158,23 @@ std::optional<PointCloud> importAsciiStl(std::string_view data)
     PointCloud cloud;
     std::vector<std::uint32_t> triangle;
     forEachLine(data, [&](std::string_view line) {
-        if (cloud.points.size() >= kMaxPoints)
+        if (cloud.points().size() >= kMaxPoints)
             return;
         const auto tokens = splitWhitespace(line);
         if (tokens.size() < 4 || tokens[0] != "vertex")
             return;
         Vec3f point;
-        if (!parseFloat(tokens[1], point.x) || !parseFloat(tokens[2], point.y) ||
-            !parseFloat(tokens[3], point.z))
+        if (!parseVec3(tokens[1], tokens[2], tokens[3], point))
             return;
-        triangle.push_back(static_cast<std::uint32_t>(cloud.points.size()));
-        cloud.points.push_back(point);
+        triangle.push_back(static_cast<std::uint32_t>(cloud.points().size()));
+        cloud.addPoint(point);
         if (triangle.size() == 3)
         {
             addPolygonEdges(cloud, triangle);
             triangle.clear();
         }
     });
-    if (cloud.points.empty())
+    if (cloud.points().empty())
         return std::nullopt;
     return cloud;
 }
@@ -185,7 +192,7 @@ std::optional<PointCloud> importBinaryStl(std::string_view data)
     PointCloud cloud;
     const std::uint32_t bounded =
         static_cast<std::uint32_t>(std::min<std::size_t>(triangleCount, kMaxPoints / 3));
-    cloud.points.reserve(static_cast<std::size_t>(bounded) * 3);
+    cloud.reservePoints(static_cast<std::size_t>(bounded) * 3);
     for (std::uint32_t index = 0; index < bounded; ++index)
     {
         const unsigned char *record = bytes + 84 + static_cast<std::size_t>(index) * 50;
@@ -193,13 +200,13 @@ std::optional<PointCloud> importBinaryStl(std::string_view data)
         for (int corner = 0; corner < 3; ++corner)
         {
             const unsigned char *vertex = record + 12 + corner * 12; // skip the normal
-            triangle.push_back(static_cast<std::uint32_t>(cloud.points.size()));
-            cloud.points.push_back(
+            triangle.push_back(static_cast<std::uint32_t>(cloud.points().size()));
+            cloud.addPoint(
                 Vec3f{readF32LE(vertex), readF32LE(vertex + 4), readF32LE(vertex + 8)});
         }
         addPolygonEdges(cloud, triangle);
     }
-    if (cloud.points.empty())
+    if (cloud.points().empty())
         return std::nullopt;
     return cloud;
 }
@@ -284,11 +291,11 @@ PointCloud readPlyBody(std::string_view body, const PlyHeader &header)
             if (static_cast<int>(tokens.size()) <= maxSlot)
                 return;
             Vec3f point;
-            if (parseFloat(tokens[static_cast<std::size_t>(header.xSlot)], point.x) &&
-                parseFloat(tokens[static_cast<std::size_t>(header.ySlot)], point.y) &&
-                parseFloat(tokens[static_cast<std::size_t>(header.zSlot)], point.z) &&
-                cloud.points.size() < kMaxPoints)
-                cloud.points.push_back(point);
+            if (parseVec3(tokens[static_cast<std::size_t>(header.xSlot)],
+                          tokens[static_cast<std::size_t>(header.ySlot)],
+                          tokens[static_cast<std::size_t>(header.zSlot)], point) &&
+                cloud.points().size() < kMaxPoints)
+                cloud.addPoint(point);
             ++consumedVertices;
         } else if (consumedFaces < header.faceCount)
         {
@@ -299,7 +306,7 @@ PointCloud readPlyBody(std::string_view body, const PlyHeader &header)
             {
                 long vertex = 0;
                 if (!parseIndex(tokens[index], vertex) || vertex < 0 ||
-                    vertex >= static_cast<long>(cloud.points.size()))
+                    vertex >= static_cast<long>(cloud.points().size()))
                     return;
                 polygon.push_back(static_cast<std::uint32_t>(vertex));
             }
@@ -328,7 +335,7 @@ std::optional<PointCloud> PlyImporter::import(std::string_view data) const
         return std::nullopt;
 
     PointCloud cloud = readPlyBody(data.substr(data.find('\n', headerEnd) + 1), header);
-    if (cloud.points.empty())
+    if (cloud.points().empty())
         return std::nullopt;
     return cloud;
 }
@@ -337,17 +344,16 @@ std::optional<PointCloud> XyzImporter::import(std::string_view data) const
 {
     PointCloud cloud;
     forEachLine(data, [&](std::string_view line) {
-        if (line.empty() || line.front() == '#' || cloud.points.size() >= kMaxPoints)
+        if (line.empty() || line.front() == '#' || cloud.points().size() >= kMaxPoints)
             return;
         const auto tokens = splitWhitespace(line);
         if (tokens.size() < 3)
             return;
         Vec3f point;
-        if (parseFloat(tokens[0], point.x) && parseFloat(tokens[1], point.y) &&
-            parseFloat(tokens[2], point.z))
-            cloud.points.push_back(point);
+        if (parseVec3(tokens[0], tokens[1], tokens[2], point))
+            cloud.addPoint(point);
     });
-    if (cloud.points.empty())
+    if (cloud.points().empty())
         return std::nullopt;
     return cloud;
 }
@@ -375,12 +381,12 @@ std::optional<PointCloud> VoxImporter::import(std::string_view data) const
             const std::uint32_t voxelCount = readU32LE(bytes + offset);
             const std::uint32_t bounded    = static_cast<std::uint32_t>(std::min<std::size_t>(
                 voxelCount,
-                std::min<std::size_t>((contentSize - 4) / 4, kMaxPoints - cloud.points.size())));
+                std::min<std::size_t>((contentSize - 4) / 4, kMaxPoints - cloud.points().size())));
             for (std::uint32_t index = 0; index < bounded; ++index)
             {
                 const unsigned char *voxel =
                     bytes + offset + 4 + static_cast<std::size_t>(index) * 4;
-                cloud.points.push_back(Vec3f{static_cast<float>(voxel[0]),
+                cloud.addPoint(Vec3f{static_cast<float>(voxel[0]),
                                              static_cast<float>(voxel[2]),
                                              static_cast<float>(voxel[1])});
             }
@@ -392,10 +398,10 @@ std::optional<PointCloud> VoxImporter::import(std::string_view data) const
         {
             offset += contentSize; // skip unrelated chunk content
         }
-        if (cloud.points.size() >= kMaxPoints)
+        if (cloud.points().size() >= kMaxPoints)
             break;
     }
-    if (cloud.points.empty())
+    if (cloud.points().empty())
         return std::nullopt;
     return cloud;
 }

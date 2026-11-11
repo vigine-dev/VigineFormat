@@ -1,30 +1,44 @@
 #include "vigine/format/diagrammodel.h"
 
 #include <algorithm>
+#include <utility>
 
 namespace vigine::format
 {
+DiagramNode::DiagramNode(std::string id, std::string label, std::uint32_t kind)
+    : _id{std::move(id)}, _label{std::move(label)}, _kind{kind}
+{
+}
+
+void DiagramNode::setLabel(std::string_view label)
+{
+    _label.assign(label);
+}
+
+DiagramEdge::DiagramEdge(std::string from, std::string to, std::string label, bool directed)
+    : _from{std::move(from)}, _to{std::move(to)}, _label{std::move(label)}, _directed{directed}
+{
+}
+
 void DiagramModel::addNode(std::string_view id, std::string_view label)
 {
     if (id.empty())
     {
         return;
     }
-    const auto existing = std::find_if(nodes.begin(), nodes.end(),
-                                       [id](const DiagramNode &node) { return node.id == id; });
-    if (existing != nodes.end())
+    const auto existing = std::find_if(_nodes.begin(), _nodes.end(),
+                                       [id](const DiagramNode &node) { return node.id() == id; });
+    if (existing != _nodes.end())
     {
-        if (existing->label.empty() && !label.empty())
+        if (existing->label().empty() && !label.empty())
         {
-            existing->label.assign(label);
+            existing->setLabel(label);
         }
         return;
     }
-    DiagramNode node;
-    node.id.assign(id);
-    node.label.assign(label); // empty label means "display the id" -- a later
-                              // labelled mention fills it via the dedup path above
-    nodes.push_back(std::move(node));
+    // An empty label means "display the id"; a later labelled mention fills it
+    // through the dedup path above.
+    _nodes.emplace_back(std::string{id}, std::string{label});
 }
 
 void DiagramModel::addEdge(std::string_view from, std::string_view to, std::string_view label,
@@ -36,12 +50,7 @@ void DiagramModel::addEdge(std::string_view from, std::string_view to, std::stri
     }
     addNode(from);
     addNode(to);
-    DiagramEdge edge;
-    edge.from.assign(from);
-    edge.to.assign(to);
-    edge.label.assign(label);
-    edge.directed = directed;
-    edges.push_back(std::move(edge));
+    _edges.emplace_back(std::string{from}, std::string{to}, std::string{label}, directed);
 }
 
 } // namespace vigine::format
