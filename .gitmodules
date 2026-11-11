@@ -14,3 +14,7 @@
 	path = external/rapidyaml
 	url = https://github.com/vigine-dev/rapidyaml.git
 	branch = vigine/main
+[submodule "external/zlib"]
+	path = external/zlib
+	url = https://github.com/vigine-dev/zlib.git
+	branch = vigine/main
