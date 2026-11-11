@@ -63,6 +63,7 @@ endif()
 target_include_directories(VigineFormat
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     PUBLIC $<BUILD_INTERFACE:${VIGINEFORMAT_GENERATED_INCLUDE}>
+    PUBLIC $<INSTALL_INTERFACE:include>
     # The third-party libraries stay implementation details of the .cpp
     # files; consumers never see them.
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -76,12 +77,16 @@ target_include_directories(VigineFormat
 # byte-identical to the release header the code was written against, so the
 # behaviour, including RYML_SINGLE_HDR_DEFINE_NOW in one translation unit,
 # does not change.
-find_package(Python3 REQUIRED COMPONENTS Interpreter)
+# The Python is the one the recipe states; this file does not search for one.
+if(NOT Python3_EXECUTABLE)
+    message(FATAL_ERROR "VigineFormat needs Python3_EXECUTABLE (the amalgamation of rapidyaml runs it); "
+                        "the build recipe (vigine.build.toml) states it for each system")
+endif()
 set(VIGINEFORMAT_RYML_HEADER ${VIGINEFORMAT_GENERATED_INCLUDE}/ryml/rapidyaml.hpp)
 add_custom_command(
     OUTPUT ${VIGINEFORMAT_RYML_HEADER}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${VIGINEFORMAT_GENERATED_INCLUDE}/ryml
-    COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/external/rapidyaml/tools/amalgamate.py
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/external/rapidyaml/tools/amalgamate.py
             ${VIGINEFORMAT_RYML_HEADER} --c4core --fastfloat --stl -e tree
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/external/rapidyaml/tools/amalgamate.py
     VERBATIM)
@@ -138,6 +143,30 @@ if(UNIX AND NOT APPLE)
     target_link_options(VigineFormat PRIVATE "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/cmake/vigineformat.map")
     set_property(TARGET VigineFormat APPEND PROPERTY LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/vigineformat.map)
 endif()
+
+# --- package -------------------------------------------------------------
+# Only our own headers and the library are installed; the third-party code is
+# inside the shared library and none of its headers go out.
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+install(TARGETS VigineFormat EXPORT VigineFormatTargets
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(FILES ${VIGINEFORMAT_HEADERS} ${VIGINEFORMAT_GENERATED_INCLUDE}/vigine/format/vigineformat_export.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/vigine/format)
+set(VIGINEFORMAT_PACKAGE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/VigineFormat)
+install(EXPORT VigineFormatTargets NAMESPACE VigineFormat:: FILE VigineFormatTargets.cmake
+    DESTINATION ${VIGINEFORMAT_PACKAGE_DIR})
+configure_package_config_file(cmake/VigineFormatConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/VigineFormatConfig.cmake
+    INSTALL_DESTINATION ${VIGINEFORMAT_PACKAGE_DIR})
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/VigineFormatConfigVersion.cmake
+    VERSION 0.1.0 COMPATIBILITY SameMajorVersion)
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/VigineFormatConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/VigineFormatConfigVersion.cmake
+    DESTINATION ${VIGINEFORMAT_PACKAGE_DIR})
 
 # --- tests ---------------------------------------------------------------
 # VigineUnitTest is found from CMAKE_PREFIX_PATH (<root>/install/<variant>).
