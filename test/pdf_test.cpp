@@ -2,10 +2,11 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
-#include <gtest/gtest.h>
 #include <string>
 #include <vector>
+#include <vigine/unittest/unittest.h>
 
 namespace
 {
@@ -47,36 +48,36 @@ std::string buildTinyPdf(const std::string &text)
     return pdf;
 }
 
-TEST(PdfImporter, TinyDocumentBecomesPagesAndTextRuns)
+VIGINE_TEST(PdfImporter, TinyDocumentBecomesPagesAndTextRuns)
 {
-    const std::string path = std::string(::testing::TempDir()) + "vigineformat_tiny.pdf";
+    const std::string path = (std::filesystem::temp_directory_path() / "vigineformat_tiny.pdf").string();
     {
         std::ofstream out(path, std::ios::binary);
         out << buildTinyPdf("Hello CodeMap");
     }
 
-    PdfImporter pdf;
-    const auto model = pdf.importFile(path);
-    ASSERT_TRUE(model.has_value());
+    const auto pdf = createPdfImporter();
+    const auto model = pdf->importFile(path);
+    VIGINE_ASSERT_TRUE(model.has_value());
     const auto hasLabel = [&](const std::string &label) {
-        return std::any_of(model->nodes.begin(), model->nodes.end(),
-                           [&](const DiagramNode &node) { return node.label == label; });
+        return std::any_of(model->nodes().begin(), model->nodes().end(),
+                           [&](const DiagramNode &node) { return node.label() == label; });
     };
-    EXPECT_TRUE(hasLabel("Page 1"));
-    EXPECT_TRUE(hasLabel("Hello CodeMap"));
+    VIGINE_EXPECT_TRUE(hasLabel("Page 1"));
+    VIGINE_EXPECT_TRUE(hasLabel("Hello CodeMap"));
     std::remove(path.c_str());
 }
 
-TEST(PdfImporter, MissingOrBrokenFileYieldsNoModel)
+VIGINE_TEST(PdfImporter, MissingOrBrokenFileYieldsNoModel)
 {
-    PdfImporter pdf;
-    EXPECT_FALSE(pdf.importFile("/nonexistent/definitely_missing.pdf").has_value());
-    const std::string path = std::string(::testing::TempDir()) + "vigineformat_broken.pdf";
+    const auto pdf = createPdfImporter();
+    VIGINE_EXPECT_FALSE(pdf->importFile("/nonexistent/definitely_missing.pdf").has_value());
+    const std::string path = (std::filesystem::temp_directory_path() / "vigineformat_broken.pdf").string();
     {
         std::ofstream out(path, std::ios::binary);
         out << "%PDF-1.4\nthis is not really a pdf";
     }
-    EXPECT_FALSE(pdf.importFile(path).has_value());
+    VIGINE_EXPECT_FALSE(pdf->importFile(path).has_value());
     std::remove(path.c_str());
 }
 } // namespace

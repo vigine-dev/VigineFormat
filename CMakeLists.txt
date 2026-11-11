@@ -9,8 +9,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(VIGINEFORMAT_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-# The tests move to VigineUnitTest (task 18242); until then they stay off because googletest left external/.
-option(VIGINEFORMAT_BUILD_TESTS "Build VigineFormat tests" OFF)
+option(VIGINEFORMAT_BUILD_TESTS "Build VigineFormat tests" ON)
 
 if(NOT DEFINED CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type" FORCE)
@@ -141,7 +140,15 @@ if(UNIX AND NOT APPLE)
 endif()
 
 # --- tests ---------------------------------------------------------------
-# The tests move to VigineUnitTest (task 18242), which brings them back.
+# VigineUnitTest is found from CMAKE_PREFIX_PATH (<root>/install/<variant>).
 if(VIGINEFORMAT_BUILD_TESTS)
-    message(FATAL_ERROR "VigineFormat holds no test framework; its tests come from VigineUnitTest")
+    enable_testing()
+    find_package(VigineUnitTest REQUIRED)
+    vigine_unit_add_tests(vigineformat-test SOURCES
+        test/data_test.cpp
+        test/diagram_test.cpp
+        test/identify_test.cpp
+        test/pdf_test.cpp
+        test/point_test.cpp)
+    target_link_libraries(vigineformat-test PRIVATE VigineFormat::VigineFormat)
 endif()

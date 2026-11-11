@@ -2,43 +2,43 @@
 #include "vigine/format/pointcloud.h"
 
 #include <cstring>
-#include <gtest/gtest.h>
 #include <string>
+#include <vigine/unittest/unittest.h>
 
 namespace
 {
 using namespace vigine::format;
 
-TEST(ObjImporter, VerticesAndFaceEdges)
+VIGINE_TEST(ObjImporter, VerticesAndFaceEdges)
 {
-    ObjImporter obj;
-    const auto cloud = obj.import("# cube corner\nv 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n");
-    ASSERT_TRUE(cloud.has_value());
-    EXPECT_EQ(cloud->points.size(), 3u);
-    EXPECT_EQ(cloud->edges.size(), 3u); // triangle wireframe
-    EXPECT_FLOAT_EQ(cloud->points[1].x, 1.0f);
+    const auto obj = createObjImporter();
+    const auto cloud = obj->import("# cube corner\nv 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n");
+    VIGINE_ASSERT_TRUE(cloud.has_value());
+    VIGINE_EXPECT_EQ(cloud->points().size(), 3u);
+    VIGINE_EXPECT_EQ(cloud->edges().size(), 3u); // triangle wireframe
+    VIGINE_EXPECT_NEAR(cloud->points()[1].x(), 1.0f, 1e-6f);
 }
 
-TEST(ObjImporter, SlashedFaceTokensResolve)
+VIGINE_TEST(ObjImporter, SlashedFaceTokensResolve)
 {
-    ObjImporter obj;
-    const auto cloud = obj.import("v 0 0 0\nv 1 1 1\nv 2 2 2\nf 1/1/1 2/2/2 3/3/3\n");
-    ASSERT_TRUE(cloud.has_value());
-    EXPECT_EQ(cloud->edges.size(), 3u);
+    const auto obj = createObjImporter();
+    const auto cloud = obj->import("v 0 0 0\nv 1 1 1\nv 2 2 2\nf 1/1/1 2/2/2 3/3/3\n");
+    VIGINE_ASSERT_TRUE(cloud.has_value());
+    VIGINE_EXPECT_EQ(cloud->edges().size(), 3u);
 }
 
-TEST(StlImporter, AsciiTriangles)
+VIGINE_TEST(StlImporter, AsciiTriangles)
 {
-    StlImporter stl;
-    const auto cloud = stl.import(
+    const auto stl = createStlImporter();
+    const auto cloud = stl->import(
         "solid demo\n facet normal 0 0 1\n  outer loop\n   vertex 0 0 0\n   vertex 1 0 0\n"
         "   vertex 0 1 0\n  endloop\n endfacet\nendsolid demo\n");
-    ASSERT_TRUE(cloud.has_value());
-    EXPECT_EQ(cloud->points.size(), 3u);
-    EXPECT_EQ(cloud->edges.size(), 3u);
+    VIGINE_ASSERT_TRUE(cloud.has_value());
+    VIGINE_EXPECT_EQ(cloud->points().size(), 3u);
+    VIGINE_EXPECT_EQ(cloud->edges().size(), 3u);
 }
 
-TEST(StlImporter, BinaryTriangles)
+VIGINE_TEST(StlImporter, BinaryTriangles)
 {
     std::string blob(84, '\0');
     const std::uint32_t count = 1;
@@ -48,35 +48,35 @@ TEST(StlImporter, BinaryTriangles)
     std::memcpy(triangle.data(), record, sizeof(record));
     blob += triangle;
 
-    StlImporter stl;
-    const auto cloud = stl.import(blob);
-    ASSERT_TRUE(cloud.has_value());
-    EXPECT_EQ(cloud->points.size(), 3u);
-    EXPECT_FLOAT_EQ(cloud->points[1].x, 1.0f);
+    const auto stl = createStlImporter();
+    const auto cloud = stl->import(blob);
+    VIGINE_ASSERT_TRUE(cloud.has_value());
+    VIGINE_EXPECT_EQ(cloud->points().size(), 3u);
+    VIGINE_EXPECT_NEAR(cloud->points()[1].x(), 1.0f, 1e-6f);
 }
 
-TEST(PlyImporter, AsciiVerticesAndFaces)
+VIGINE_TEST(PlyImporter, AsciiVerticesAndFaces)
 {
-    PlyImporter ply;
+    const auto ply = createPlyImporter();
     const auto cloud =
-        ply.import("ply\nformat ascii 1.0\nelement vertex 3\nproperty float x\nproperty float y\n"
+        ply->import("ply\nformat ascii 1.0\nelement vertex 3\nproperty float x\nproperty float y\n"
                    "property float z\nelement face 1\nproperty list uchar int vertex_indices\n"
                    "end_header\n0 0 0\n1 0 0\n0 1 0\n3 0 1 2\n");
-    ASSERT_TRUE(cloud.has_value());
-    EXPECT_EQ(cloud->points.size(), 3u);
-    EXPECT_EQ(cloud->edges.size(), 3u);
+    VIGINE_ASSERT_TRUE(cloud.has_value());
+    VIGINE_EXPECT_EQ(cloud->points().size(), 3u);
+    VIGINE_EXPECT_EQ(cloud->edges().size(), 3u);
 }
 
-TEST(XyzImporter, PlainPoints)
+VIGINE_TEST(XyzImporter, PlainPoints)
 {
-    XyzImporter xyz;
-    const auto cloud = xyz.import("# scan\n0 0 0\n1.5 2.5 3.5 255 0 0\n");
-    ASSERT_TRUE(cloud.has_value());
-    EXPECT_EQ(cloud->points.size(), 2u);
-    EXPECT_FLOAT_EQ(cloud->points[1].z, 3.5f);
+    const auto xyz = createXyzImporter();
+    const auto cloud = xyz->import("# scan\n0 0 0\n1.5 2.5 3.5 255 0 0\n");
+    VIGINE_ASSERT_TRUE(cloud.has_value());
+    VIGINE_EXPECT_EQ(cloud->points().size(), 2u);
+    VIGINE_EXPECT_NEAR(cloud->points()[1].z(), 3.5f, 1e-6f);
 }
 
-TEST(VoxImporter, ChunkStreamVoxels)
+VIGINE_TEST(VoxImporter, ChunkStreamVoxels)
 {
     // Minimal VOX: magic+version, MAIN (children only), SIZE, XYZI with 2 voxels.
     std::string blob    = "VOX ";
@@ -108,18 +108,18 @@ TEST(VoxImporter, ChunkStreamVoxels)
     blob.push_back(0);
     blob.push_back(2); // voxel B
 
-    VoxImporter vox;
-    const auto cloud = vox.import(blob);
-    ASSERT_TRUE(cloud.has_value());
-    EXPECT_EQ(cloud->points.size(), 2u);
+    const auto vox = createVoxImporter();
+    const auto cloud = vox->import(blob);
+    VIGINE_ASSERT_TRUE(cloud.has_value());
+    VIGINE_EXPECT_EQ(cloud->points().size(), 2u);
 }
 
-TEST(Identify, ThreeDMagicAndExtensions)
+VIGINE_TEST(Identify, ThreeDMagicAndExtensions)
 {
-    EXPECT_EQ(identifyContent("ply\nformat ascii 1.0\nend_header\n"), KnownFormat::Ply);
-    EXPECT_EQ(identifyContent("solid x\nfacet normal 0 0 1\n"), KnownFormat::Stl);
-    EXPECT_EQ(identifyContent(std::string("VOX \x96\x00\x00\x00", 8)), KnownFormat::Vox);
-    EXPECT_EQ(identifyExtension("model.obj"), KnownFormat::Obj);
-    EXPECT_EQ(identifyExtension("scan.xyz"), KnownFormat::Xyz);
+    VIGINE_EXPECT_EQ(identifyContent("ply\nformat ascii 1.0\nend_header\n"), KnownFormat::Ply);
+    VIGINE_EXPECT_EQ(identifyContent("solid x\nfacet normal 0 0 1\n"), KnownFormat::Stl);
+    VIGINE_EXPECT_EQ(identifyContent(std::string("VOX \x96\x00\x00\x00", 8)), KnownFormat::Vox);
+    VIGINE_EXPECT_EQ(identifyExtension("model.obj"), KnownFormat::Obj);
+    VIGINE_EXPECT_EQ(identifyExtension("scan.xyz"), KnownFormat::Xyz);
 }
 } // namespace
