@@ -7,6 +7,8 @@
 
 namespace vigine::format
 {
+ITomlCodec::~ITomlCodec() = default;
+
 namespace
 {
 template <typename Temporal> DataValue temporalText(const Temporal &temporal)

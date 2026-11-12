@@ -5,6 +5,8 @@
 
 namespace vigine::format
 {
+IDiagramImporter::~IDiagramImporter() = default;
+
 DiagramNode::DiagramNode(std::string id, std::string label, std::uint32_t kind)
     : _id{std::move(id)}, _label{std::move(label)}, _kind{kind}
 {
