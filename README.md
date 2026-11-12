@@ -29,3 +29,8 @@ default build light.
 
 Like its siblings VigineCrypto and VigineConfig, the library is consumed as a
 single submodule exposing the `VigineFormat::VigineFormat` target.
+
+## Build
+
+The build goes by the recipe, vigine.build.toml. The tests come from
+VigineUnitTest.
