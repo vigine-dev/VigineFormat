@@ -1,6 +1,7 @@
 {
   global:
     _ZN6vigine*;
+    _ZNK6vigine*;
     _ZTVN6vigine*;
     _ZTIN6vigine*;
     _ZTSN6vigine*;

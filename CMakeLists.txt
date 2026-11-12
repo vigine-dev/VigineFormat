@@ -20,7 +20,16 @@ endif()
 # (magic bytes + structural probes, the extension only as a hint) and parsers
 # that emit NEUTRAL models -- no third-party type ever appears in a public
 # header, so backends can be swapped without touching consumers.
-file(GLOB VIGINEFORMAT_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+set(VIGINEFORMAT_SOURCES
+    src/dataimporters.cpp
+    src/diagramimporters.cpp
+    src/diagrammodel.cpp
+    src/identify.cpp
+    src/importerfactories.cpp
+    src/pdfimporter.cpp
+    src/pointimporters.cpp
+    src/tomlcodec.cpp)
+list(TRANSFORM VIGINEFORMAT_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
 file(GLOB VIGINEFORMAT_HEADERS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/include/vigine/format/*.h)
 # The PDF backend is always built: pdfio and its zlib are our forks inside this
 # repository, compiled in and hidden. Nothing comes from the system, and a
@@ -178,6 +187,7 @@ if(VIGINEFORMAT_BUILD_TESTS)
         test/diagram_test.cpp
         test/identify_test.cpp
         test/pdf_test.cpp
-        test/point_test.cpp)
+        test/point_test.cpp
+        test/tomlcodec_test.cpp)
     target_link_libraries(vigineformat-test PRIVATE VigineFormat::VigineFormat)
 endif()
