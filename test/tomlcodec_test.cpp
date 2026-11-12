@@ -12,24 +12,24 @@ using namespace vigine::format;
 VIGINE_TEST(TomlCodec, ParsesScalarsAndNesting)
 {
     const auto codec = createTomlCodec();
-    const TomlValue root = codec->parse("title = \"app\"\n"
+    const DataValue root = codec->parse("title = \"app\"\n"
                                         "[window]\n"
                                         "width = 800\n"
                                         "ratio = 1.5\n"
                                         "visible = true\n"
                                         "tags = [\"a\", \"b\"]\n");
 
-    VIGINE_ASSERT_TRUE(root.kind() == TomlKind::Table);
+    VIGINE_ASSERT_TRUE(root.kind() == DataKind::Table);
     VIGINE_EXPECT_EQ(root.at("title").asString(), std::string("app"));
 
-    const TomlValue &window = root.at("window");
-    VIGINE_ASSERT_TRUE(window.kind() == TomlKind::Table);
+    const DataValue &window = root.at("window");
+    VIGINE_ASSERT_TRUE(window.kind() == DataKind::Table);
     VIGINE_EXPECT_EQ(window.at("width").asInteger(), std::int64_t{800});
     VIGINE_EXPECT_NEAR(window.at("ratio").asFloating(), 1.5, 1e-12);
     VIGINE_EXPECT_TRUE(window.at("visible").asBoolean());
 
-    const TomlValue &tags = window.at("tags");
-    VIGINE_ASSERT_TRUE(tags.kind() == TomlKind::Array);
+    const DataValue &tags = window.at("tags");
+    VIGINE_ASSERT_TRUE(tags.kind() == DataKind::Array);
     VIGINE_ASSERT_EQ(tags.elements().size(), 2u);
     VIGINE_EXPECT_EQ(tags.elements()[0].asString(), std::string("a"));
     VIGINE_EXPECT_EQ(tags.elements()[1].asString(), std::string("b"));
@@ -38,11 +38,11 @@ VIGINE_TEST(TomlCodec, ParsesScalarsAndNesting)
 VIGINE_TEST(TomlCodec, DatesAndTimesBecomeIsoStrings)
 {
     const auto codec = createTomlCodec();
-    const TomlValue root = codec->parse("day = 1979-05-27\n"
+    const DataValue root = codec->parse("day = 1979-05-27\n"
                                         "clock = 07:32:00\n"
                                         "moment = 1979-05-27T07:32:00Z\n");
 
-    VIGINE_ASSERT_TRUE(root.at("day").kind() == TomlKind::String);
+    VIGINE_ASSERT_TRUE(root.at("day").kind() == DataKind::String);
     VIGINE_EXPECT_EQ(root.at("day").asString(), std::string("1979-05-27"));
     VIGINE_EXPECT_EQ(root.at("clock").asString(), std::string("07:32:00"));
     VIGINE_EXPECT_EQ(root.at("moment").asString(), std::string("1979-05-27T07:32:00Z"));
@@ -51,19 +51,19 @@ VIGINE_TEST(TomlCodec, DatesAndTimesBecomeIsoStrings)
 VIGINE_TEST(TomlCodec, ArrayOfTablesAndMixedArray)
 {
     const auto codec = createTomlCodec();
-    const TomlValue root = codec->parse("mixed = [1, \"two\", 3.5]\n"
+    const DataValue root = codec->parse("mixed = [1, \"two\", 3.5]\n"
                                         "[[step]]\n"
                                         "name = \"build\"\n"
                                         "[[step]]\n"
                                         "name = \"test\"\n");
 
-    const TomlValue &mixed = root.at("mixed");
+    const DataValue &mixed = root.at("mixed");
     VIGINE_ASSERT_EQ(mixed.elements().size(), 3u);
-    VIGINE_EXPECT_TRUE(mixed.elements()[0].kind() == TomlKind::Integer);
-    VIGINE_EXPECT_TRUE(mixed.elements()[1].kind() == TomlKind::String);
-    VIGINE_EXPECT_TRUE(mixed.elements()[2].kind() == TomlKind::Floating);
+    VIGINE_EXPECT_TRUE(mixed.elements()[0].kind() == DataKind::Integer);
+    VIGINE_EXPECT_TRUE(mixed.elements()[1].kind() == DataKind::String);
+    VIGINE_EXPECT_TRUE(mixed.elements()[2].kind() == DataKind::Float);
 
-    const TomlValue &steps = root.at("step");
+    const DataValue &steps = root.at("step");
     VIGINE_ASSERT_EQ(steps.elements().size(), 2u);
     VIGINE_EXPECT_EQ(steps.elements()[1].at("name").asString(), std::string("test"));
 }
@@ -71,7 +71,7 @@ VIGINE_TEST(TomlCodec, ArrayOfTablesAndMixedArray)
 VIGINE_TEST(TomlCodec, RoundTripsToEqualTree)
 {
     const auto codec = createTomlCodec();
-    const TomlValue original = codec->parse("a = 1\n"
+    const DataValue original = codec->parse("a = 1\n"
                                             "b = \"x\"\n"
                                             "pi = 3.25\n"
                                             "day = 1979-05-27\n"
@@ -82,22 +82,22 @@ VIGINE_TEST(TomlCodec, RoundTripsToEqualTree)
                                             "id = 7\n");
 
     const std::string text = codec->serialize(original);
-    const TomlValue reparsed = codec->parse(text);
+    const DataValue reparsed = codec->parse(text);
     VIGINE_EXPECT_TRUE(original == reparsed);
 }
 
 VIGINE_TEST(TomlCodec, SerializesATreeBuiltByHand)
 {
     const auto codec = createTomlCodec();
-    TomlValue inner = TomlValue::table();
-    inner.set("on", TomlValue::boolean(true));
-    TomlValue list = TomlValue::array();
-    list.append(TomlValue::integer(1));
-    list.append(TomlValue::integer(2));
-    TomlValue root = TomlValue::table();
-    root.set("name", TomlValue::string("demo"));
-    root.set("count", TomlValue::integer(-3));
-    root.set("ratio", TomlValue::floating(0.5));
+    DataValue inner = DataValue::table();
+    inner.set("on", DataValue::boolean(true));
+    DataValue list = DataValue::array();
+    list.append(DataValue::integer(1));
+    list.append(DataValue::integer(2));
+    DataValue root = DataValue::table();
+    root.set("name", DataValue::string("demo"));
+    root.set("count", DataValue::integer(-3));
+    root.set("ratio", DataValue::floating(0.5));
     root.set("inner", inner);
     root.set("list", list);
 
@@ -126,7 +126,7 @@ VIGINE_TEST(TomlCodec, SerializeRejectsNonTableRoot)
     bool thrown = false;
     try
     {
-        (void)codec->serialize(TomlValue::integer(42));
+        (void)codec->serialize(DataValue::integer(42));
     } catch (const std::invalid_argument &)
     {
         thrown = true;
@@ -134,41 +134,43 @@ VIGINE_TEST(TomlCodec, SerializeRejectsNonTableRoot)
     VIGINE_EXPECT_TRUE(thrown);
 }
 
-VIGINE_TEST(TomlValue, AskingForTheWrongKindThrows)
+VIGINE_TEST(TomlCodec, SerializeRefusesANullInATable)
 {
+    const auto codec = createTomlCodec();
+    DataValue inner = DataValue::table();
+    inner.set("gone", DataValue::null());
+    DataValue root = DataValue::table();
+    root.set("inner", inner);
     bool thrown = false;
     try
     {
-        (void)TomlValue::string("text").asInteger();
-    } catch (const std::logic_error &)
+        (void)codec->serialize(root);
+    } catch (const std::invalid_argument &error)
     {
         thrown = true;
-    }
-    VIGINE_EXPECT_TRUE(thrown);
-
-    thrown = false;
-    try
-    {
-        (void)TomlValue::table().at("missing");
-    } catch (const std::out_of_range &)
-    {
-        thrown = true;
+        VIGINE_EXPECT_TRUE(std::string(error.what()).find("\"gone\"") != std::string::npos);
+        VIGINE_EXPECT_TRUE(std::string(error.what()).find("null") != std::string::npos);
     }
     VIGINE_EXPECT_TRUE(thrown);
 }
 
-VIGINE_TEST(TomlValue, SettingAKeyAgainReplacesItAndTablesIgnoreKeyOrder)
+VIGINE_TEST(TomlCodec, SerializeRefusesANullInAnArray)
 {
-    TomlValue first = TomlValue::table();
-    first.set("a", TomlValue::integer(1));
-    first.set("b", TomlValue::integer(2));
-    first.set("a", TomlValue::integer(9));
-    VIGINE_EXPECT_EQ(first.keys().size(), 2u);
-    VIGINE_EXPECT_EQ(first.at("a").asInteger(), std::int64_t{9});
-
-    TomlValue second = TomlValue::table();
-    second.set("b", TomlValue::integer(2));
-    second.set("a", TomlValue::integer(9));
-    VIGINE_EXPECT_TRUE(first == second);
+    const auto codec = createTomlCodec();
+    DataValue list = DataValue::array();
+    list.append(DataValue::integer(1));
+    list.append(DataValue::null());
+    DataValue root = DataValue::table();
+    root.set("list", list);
+    bool thrown = false;
+    try
+    {
+        (void)codec->serialize(root);
+    } catch (const std::invalid_argument &error)
+    {
+        thrown = true;
+        VIGINE_EXPECT_TRUE(std::string(error.what()).find("null") != std::string::npos);
+    }
+    VIGINE_EXPECT_TRUE(thrown);
 }
 } // namespace

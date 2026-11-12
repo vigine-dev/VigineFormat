@@ -22,6 +22,7 @@ endif()
 # header, so backends can be swapped without touching consumers.
 set(VIGINEFORMAT_SOURCES
     src/dataimporters.cpp
+    src/datavalue.cpp
     src/diagramimporters.cpp
     src/diagrammodel.cpp
     src/identify.cpp
@@ -184,6 +185,7 @@ if(VIGINEFORMAT_BUILD_TESTS)
     find_package(VigineUnitTest REQUIRED)
     vigine_unit_add_tests(vigineformat-test SOURCES
         test/data_test.cpp
+        test/datavalue_test.cpp
         test/diagram_test.cpp
         test/identify_test.cpp
         test/pdf_test.cpp
