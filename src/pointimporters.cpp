@@ -7,6 +7,8 @@
 
 namespace vigine::format
 {
+IPointCloudImporter::~IPointCloudImporter() = default;
+
 namespace
 {
 constexpr std::size_t kMaxPoints = 2'000'000;

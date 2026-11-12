@@ -7,6 +7,8 @@
 
 namespace vigine::format
 {
+IDocumentImporter::~IDocumentImporter() = default;
+
 namespace
 {
 std::string truncateLabel(std::string text)

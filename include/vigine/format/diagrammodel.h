@@ -73,7 +73,7 @@ class VIGINEFORMAT_API DiagramModel
 class VIGINEFORMAT_API IDiagramImporter
 {
   public:
-    virtual ~IDiagramImporter()                          = default;
+    virtual ~IDiagramImporter();
 
     [[nodiscard]] virtual std::string formatName() const = 0;
 

@@ -55,7 +55,7 @@ class VIGINEFORMAT_API PointCloud
 class VIGINEFORMAT_API IPointCloudImporter
 {
   public:
-    virtual ~IPointCloudImporter()                                                      = default;
+    virtual ~IPointCloudImporter();
     [[nodiscard]] virtual std::string formatName() const                                = 0;
     [[nodiscard]] virtual std::optional<PointCloud> import(std::string_view data) const = 0;
 

@@ -29,7 +29,7 @@ class VIGINEFORMAT_API TomlParseError : public std::runtime_error
 class VIGINEFORMAT_API ITomlCodec
 {
   public:
-    virtual ~ITomlCodec() = default;
+    virtual ~ITomlCodec();
 
     // TOML text to a Table value. Throws TomlParseError on malformed input.
     [[nodiscard]] virtual DataValue parse(std::string_view text) const = 0;

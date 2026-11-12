@@ -16,7 +16,7 @@ namespace vigine::format
 class VIGINEFORMAT_API IDocumentImporter
 {
   public:
-    virtual ~IDocumentImporter() = default;
+    virtual ~IDocumentImporter();
 
     [[nodiscard]] virtual std::string formatName() const = 0;
 
