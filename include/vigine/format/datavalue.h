@@ -20,6 +20,8 @@ enum class DataKind : std::uint8_t
     Null,
 };
 
+[[nodiscard]] VIGINEFORMAT_API const char *kindName(DataKind kind);
+
 // The neutral value tree every format reads into and writes from: a kind and the one value that kind holds.
 // Asking a value for what it does not hold throws std::logic_error naming both kinds.
 class VIGINEFORMAT_API DataValue

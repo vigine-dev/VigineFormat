@@ -167,7 +167,8 @@ class TomlCodec final : public ITomlCodec
     {
         if (root.kind() != DataKind::Table)
         {
-            throw std::invalid_argument("TOML serialize: the root value must be a table");
+            throw std::invalid_argument("TOML serialize: the root value must be a table, it is a "
+                                        + std::string(kindName(root.kind())));
         }
         std::ostringstream stream;
         stream << toTable(root);

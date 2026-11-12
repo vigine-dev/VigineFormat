@@ -127,9 +127,11 @@ VIGINE_TEST(TomlCodec, SerializeRejectsNonTableRoot)
     try
     {
         (void)codec->serialize(DataValue::integer(42));
-    } catch (const std::invalid_argument &)
+    } catch (const std::invalid_argument &error)
     {
         thrown = true;
+        VIGINE_EXPECT_EQ(std::string(error.what()),
+                         std::string("TOML serialize: the root value must be a table, it is a integer"));
     }
     VIGINE_EXPECT_TRUE(thrown);
 }

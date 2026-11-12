@@ -6,8 +6,6 @@
 
 namespace vigine::format
 {
-namespace
-{
 const char *kindName(DataKind kind)
 {
     switch (kind)
@@ -29,7 +27,6 @@ const char *kindName(DataKind kind)
     }
     throw std::logic_error("DataValue: unknown kind");
 }
-} // namespace
 
 DataValue::DataValue(DataKind kind) : _kind(kind) {}
 

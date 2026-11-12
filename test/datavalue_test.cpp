@@ -20,6 +20,17 @@ VIGINE_TEST(DataValue, EveryFactoryMakesItsKind)
     VIGINE_EXPECT_TRUE(DataValue::null().kind() == DataKind::Null);
 }
 
+VIGINE_TEST(DataValue, EveryKindHasAName)
+{
+    VIGINE_EXPECT_EQ(std::string(kindName(DataKind::Table)), std::string("table"));
+    VIGINE_EXPECT_EQ(std::string(kindName(DataKind::Array)), std::string("array"));
+    VIGINE_EXPECT_EQ(std::string(kindName(DataKind::String)), std::string("string"));
+    VIGINE_EXPECT_EQ(std::string(kindName(DataKind::Integer)), std::string("integer"));
+    VIGINE_EXPECT_EQ(std::string(kindName(DataKind::Float)), std::string("float"));
+    VIGINE_EXPECT_EQ(std::string(kindName(DataKind::Boolean)), std::string("boolean"));
+    VIGINE_EXPECT_EQ(std::string(kindName(DataKind::Null)), std::string("null"));
+}
+
 VIGINE_TEST(DataValue, ScalarsHoldTheirValue)
 {
     VIGINE_EXPECT_EQ(DataValue::string("text").asString(), std::string("text"));
