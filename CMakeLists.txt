@@ -27,6 +27,7 @@ set(VIGINEFORMAT_SOURCES
     src/diagrammodel.cpp
     src/identify.cpp
     src/importerfactories.cpp
+    src/jsoncodec.cpp
     src/pdfimporter.cpp
     src/pointimporters.cpp
     src/tomlcodec.cpp)
@@ -188,6 +189,7 @@ if(VIGINEFORMAT_BUILD_TESTS)
         test/datavalue_test.cpp
         test/diagram_test.cpp
         test/identify_test.cpp
+        test/jsoncodec_test.cpp
         test/pdf_test.cpp
         test/point_test.cpp
         test/tomlcodec_test.cpp)
