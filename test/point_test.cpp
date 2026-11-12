@@ -16,7 +16,7 @@ VIGINE_TEST(ObjImporter, VerticesAndFaceEdges)
     VIGINE_ASSERT_TRUE(cloud.has_value());
     VIGINE_EXPECT_EQ(cloud->points().size(), 3u);
     VIGINE_EXPECT_EQ(cloud->edges().size(), 3u); // triangle wireframe
-    VIGINE_EXPECT_NEAR(cloud->points()[1].x(), 1.0f, 1e-6f);
+    VIGINE_EXPECT_FLOAT_EQ(cloud->points()[1].x(), 1.0f);
 }
 
 VIGINE_TEST(ObjImporter, SlashedFaceTokensResolve)
@@ -52,7 +52,7 @@ VIGINE_TEST(StlImporter, BinaryTriangles)
     const auto cloud = stl->import(blob);
     VIGINE_ASSERT_TRUE(cloud.has_value());
     VIGINE_EXPECT_EQ(cloud->points().size(), 3u);
-    VIGINE_EXPECT_NEAR(cloud->points()[1].x(), 1.0f, 1e-6f);
+    VIGINE_EXPECT_FLOAT_EQ(cloud->points()[1].x(), 1.0f);
 }
 
 VIGINE_TEST(PlyImporter, AsciiVerticesAndFaces)
@@ -73,7 +73,7 @@ VIGINE_TEST(XyzImporter, PlainPoints)
     const auto cloud = xyz->import("# scan\n0 0 0\n1.5 2.5 3.5 255 0 0\n");
     VIGINE_ASSERT_TRUE(cloud.has_value());
     VIGINE_EXPECT_EQ(cloud->points().size(), 2u);
-    VIGINE_EXPECT_NEAR(cloud->points()[1].z(), 3.5f, 1e-6f);
+    VIGINE_EXPECT_FLOAT_EQ(cloud->points()[1].z(), 3.5f);
 }
 
 VIGINE_TEST(VoxImporter, ChunkStreamVoxels)
