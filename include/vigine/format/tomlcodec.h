@@ -21,10 +21,6 @@ enum class TomlKind : std::uint8_t
     Boolean,
 };
 
-class TomlValue;
-class TomlParseError;
-class ITomlCodec;
-
 // A neutral TOML value: a kind and the one value that kind holds. Dates and times are Strings in ISO-8601 form.
 // Asking a value for what it does not hold throws std::logic_error naming both kinds.
 class VIGINEFORMAT_API TomlValue
