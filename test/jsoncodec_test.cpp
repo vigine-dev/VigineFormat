@@ -2,8 +2,10 @@
 
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vigine/unittest/unittest.h>
 
 namespace
@@ -148,5 +150,91 @@ VIGINE_TEST(JsonCodec, InvalidUtf8IsReplacedByTheReplacingMethodAndRefusedByTheS
     VIGINE_EXPECT_EQ(codec->serializeReplacingInvalidUtf8(cutSequence), std::string("\"a\xEF\xBF\xBD\""));
     VIGINE_EXPECT_THROW((void)codec->serialize(loneByte), std::exception);
     VIGINE_EXPECT_THROW((void)codec->serialize(cutSequence), std::exception);
+}
+
+DataValue indentedSample()
+{
+    DataValue inner = DataValue::table();
+    inner.set("b", DataValue::boolean(true));
+    inner.set("a", DataValue::array());
+    DataValue list = DataValue::array();
+    list.append(DataValue::integer(1));
+    list.append(std::move(inner));
+    list.append(DataValue::array());
+    DataValue nested = DataValue::table();
+    nested.set("list", std::move(list));
+    nested.set("empty", DataValue::table());
+    DataValue root = DataValue::table();
+    root.set("name", DataValue::string("app"));
+    root.set("nested", std::move(nested));
+    root.set("tail", DataValue::null());
+    return root;
+}
+
+VIGINE_TEST(JsonCodec, WritesWithIndent)
+{
+    const auto codec = createJsonCodec();
+    JsonWriteOptions options;
+    options.indent = 2;
+    const std::string expected = "{\n"
+                                 "  \"name\": \"app\",\n"
+                                 "  \"nested\": {\n"
+                                 "    \"list\": [\n"
+                                 "      1,\n"
+                                 "      {\n"
+                                 "        \"b\": true,\n"
+                                 "        \"a\": []\n"
+                                 "      },\n"
+                                 "      []\n"
+                                 "    ],\n"
+                                 "    \"empty\": {}\n"
+                                 "  },\n"
+                                 "  \"tail\": null\n"
+                                 "}";
+    VIGINE_EXPECT_EQ(codec->serialize(indentedSample(), options), expected);
+
+    options.indent = 0;
+    VIGINE_EXPECT_EQ(codec->serialize(DataValue::array(), options), std::string("[]"));
+    VIGINE_EXPECT_EQ(codec->serialize(codec->parse("[1,2]"), options), std::string("[\n1,\n2\n]"));
+}
+
+VIGINE_TEST(JsonCodec, WritesKeysSorted)
+{
+    const auto codec = createJsonCodec();
+    JsonWriteOptions options;
+    options.sortKeys = true;
+    VIGINE_EXPECT_EQ(codec->serialize(indentedSample(), options),
+                     std::string("{\"name\":\"app\",\"nested\":{\"empty\":{},\"list\":[1,{\"a\":[],\"b\":true},[]]},"
+                                 "\"tail\":null}"));
+
+    const DataValue alreadySorted = codec->parse("{\"a\":1,\"b\":{\"c\":2,\"d\":3},\"e\":[{\"f\":4,\"g\":5}]}");
+    VIGINE_EXPECT_EQ(codec->serialize(alreadySorted, options), codec->serialize(alreadySorted));
+
+    DataValue upperAndLower = DataValue::table();
+    upperAndLower.set("b", DataValue::integer(1));
+    upperAndLower.set("B", DataValue::integer(2));
+    VIGINE_EXPECT_EQ(codec->serialize(upperAndLower, options), std::string("{\"B\":2,\"b\":1}"));
+}
+
+VIGINE_TEST(JsonCodec, DefaultOptionsEqualTheValueSerialize)
+{
+    const auto codec = createJsonCodec();
+    const DataValue sample = indentedSample();
+    VIGINE_EXPECT_EQ(codec->serialize(sample, JsonWriteOptions{}), codec->serialize(sample));
+
+    DataValue brokenText = DataValue::string(std::string("a\xFF" "b"));
+    JsonWriteOptions replacing;
+    replacing.replaceInvalidUtf8 = true;
+    VIGINE_EXPECT_EQ(codec->serialize(brokenText, replacing), codec->serializeReplacingInvalidUtf8(brokenText));
+    VIGINE_EXPECT_THROW((void)codec->serialize(brokenText, JsonWriteOptions{}), std::exception);
+}
+
+VIGINE_TEST(JsonCodec, ParseValueGivesTheSameTreeAsParse)
+{
+    const auto codec = createJsonCodec();
+    const std::string text = "{\"a\":[1,2.5,\"x\",null,true],\"b\":{}}";
+    const std::unique_ptr<IDataValue> viaInterface = codec->parseValue(text);
+    VIGINE_EXPECT_TRUE(viaInterface->equals(codec->parse(text)));
+    VIGINE_EXPECT_THROW((void)codec->parseValue("{"), JsonParseError);
 }
 } // namespace
