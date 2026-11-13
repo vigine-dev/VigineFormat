@@ -30,6 +30,15 @@ default build light.
 Like its siblings VigineCrypto and VigineConfig, the library is consumed as a
 single submodule exposing the `VigineFormat::VigineFormat` target.
 
+## JSON codec and the value through interfaces
+
+A consumer that holds interfaces needs no non-virtual symbol of `vigine::format` except the two factories. Values are
+`IDataValue`, built by `createDataValueFactory()` (`IDataValueFactory`); the codec from `createJsonCodec()` reads text
+with `parseValue` and writes it with `serialize(const IDataValue &, const JsonWriteOptions &)`: `indent` (-1 compact,
+>= 0 as nlohmann's `dump(indent)`), `sortKeys` (every table in byte order) and `replaceInvalidUtf8`. `DataValue` implements
+`IDataValue` and keeps its API, so it can be given wherever an `IDataValue` is asked. `kindName` is not part of the
+interface path: a consumer names the kinds from the `DataKind` enum itself.
+
 ## Build
 
 The build goes by the recipe, vigine.build.toml. The tests come from

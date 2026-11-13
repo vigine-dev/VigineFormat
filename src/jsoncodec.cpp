@@ -4,6 +4,7 @@
 #include <cmath>
 #include <nlohmann/json.hpp>
 #include <utility>
+#include <vector>
 
 namespace vigine::format
 {
@@ -59,25 +60,34 @@ DataValue fromJson(const Json &source)
     throw std::logic_error("JSON parse: a node of no usable type");
 }
 
-Json toJson(const DataValue &source)
+Json toJson(const IDataValue &source, bool sortKeys)
 {
     switch (source.kind())
     {
     case DataKind::Table:
     {
-        Json result = Json::object();
-        for (const std::string &key : source.keys())
+        std::vector<std::string> keys;
+        for (std::size_t index = 0; index < source.size(); ++index)
         {
-            result[key] = toJson(source.at(key));
+            keys.emplace_back(source.keyAt(index));
+        }
+        if (sortKeys)
+        {
+            std::sort(keys.begin(), keys.end());
+        }
+        Json result = Json::object();
+        for (const std::string &key : keys)
+        {
+            result[key] = toJson(source.at(key), sortKeys);
         }
         return result;
     }
     case DataKind::Array:
     {
         Json result = Json::array();
-        for (const DataValue &element : source.elements())
+        for (std::size_t index = 0; index < source.size(); ++index)
         {
-            result.push_back(toJson(element));
+            result.push_back(toJson(source.elementAt(index), sortKeys));
         }
         return result;
     }
@@ -124,12 +134,26 @@ class JsonCodec final : public IJsonCodec
 
     std::string serialize(const DataValue &root) const override
     {
-        return toJson(root).dump();
+        return serialize(root, JsonWriteOptions{});
     }
 
     std::string serializeReplacingInvalidUtf8(const DataValue &root) const override
     {
-        return toJson(root).dump(-1, ' ', false, Json::error_handler_t::replace);
+        JsonWriteOptions options;
+        options.replaceInvalidUtf8 = true;
+        return serialize(root, options);
+    }
+
+    std::unique_ptr<IDataValue> parseValue(std::string_view text) const override
+    {
+        return std::make_unique<DataValue>(parse(text));
+    }
+
+    std::string serialize(const IDataValue &root, const JsonWriteOptions &options) const override
+    {
+        return toJson(root, options.sortKeys)
+            .dump(options.indent, ' ', false,
+                  options.replaceInvalidUtf8 ? Json::error_handler_t::replace : Json::error_handler_t::strict);
     }
 };
 } // namespace

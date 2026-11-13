@@ -189,6 +189,7 @@ if(VIGINEFORMAT_BUILD_TESTS)
         test/datavalue_test.cpp
         test/diagram_test.cpp
         test/identify_test.cpp
+        test/idatavalue_test.cpp
         test/jsoncodec_test.cpp
         test/pdf_test.cpp
         test/point_test.cpp

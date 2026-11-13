@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vigine/format/datavalue.h"
+#include "vigine/format/idatavalue.h"
 #include "vigine/format/vigineformat_export.h"
 
 #include <cstdint>
@@ -25,6 +26,15 @@ class VIGINEFORMAT_API JsonParseError : public std::runtime_error
     std::uint32_t _column;
 };
 
+// How serialize writes: indent >= 0 gives the same text as nlohmann's dump(indent), -1 is compact; sortKeys writes
+// the keys of every table in byte order at every depth; replaceInvalidUtf8 writes U+FFFD for each invalid sequence.
+struct JsonWriteOptions
+{
+    int indent = -1;
+    bool sortKeys = false;
+    bool replaceInvalidUtf8 = false;
+};
+
 class VIGINEFORMAT_API IJsonCodec
 {
   public:
@@ -36,6 +46,10 @@ class VIGINEFORMAT_API IJsonCodec
     [[nodiscard]] virtual std::string serialize(const DataValue &root) const = 0;
     // The same text as serialize, but each invalid UTF-8 sequence in a string is written as U+FFFD instead of throwing.
     [[nodiscard]] virtual std::string serializeReplacingInvalidUtf8(const DataValue &root) const = 0;
+
+    // The same through the interfaces alone. Throws JsonParseError / std::invalid_argument as parse / serialize do.
+    [[nodiscard]] virtual std::unique_ptr<IDataValue> parseValue(std::string_view text) const = 0;
+    [[nodiscard]] virtual std::string serialize(const IDataValue &root, const JsonWriteOptions &options) const = 0;
 };
 
 [[nodiscard]] VIGINEFORMAT_API std::unique_ptr<IJsonCodec> createJsonCodec();
