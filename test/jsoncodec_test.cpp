@@ -126,4 +126,27 @@ VIGINE_TEST(JsonCodec, NonFiniteFloatCannotBeWritten)
     }
     VIGINE_EXPECT_TRUE(thrown);
 }
+
+VIGINE_TEST(JsonCodec, ReplacingMethodGivesTheSameBytesForValidInput)
+{
+    const auto codec = createJsonCodec();
+    DataValue root = DataValue::table();
+    root.set("name", DataValue::string("caf\xC3\xA9 \"quoted\""));
+    root.set("count", DataValue::integer(7));
+    root.set("tags", DataValue::array());
+    root.at("tags").append(DataValue::boolean(true));
+    VIGINE_EXPECT_EQ(codec->serializeReplacingInvalidUtf8(root), codec->serialize(root));
+}
+
+VIGINE_TEST(JsonCodec, InvalidUtf8IsReplacedByTheReplacingMethodAndRefusedByTheStrictOne)
+{
+    const auto codec = createJsonCodec();
+    const DataValue loneByte = DataValue::string(std::string("a\xFF" "b"));
+    const DataValue cutSequence = DataValue::string(std::string("a\xE2\x82"));
+
+    VIGINE_EXPECT_EQ(codec->serializeReplacingInvalidUtf8(loneByte), std::string("\"a\xEF\xBF\xBD" "b\""));
+    VIGINE_EXPECT_EQ(codec->serializeReplacingInvalidUtf8(cutSequence), std::string("\"a\xEF\xBF\xBD\""));
+    VIGINE_EXPECT_THROW((void)codec->serialize(loneByte), std::exception);
+    VIGINE_EXPECT_THROW((void)codec->serialize(cutSequence), std::exception);
+}
 } // namespace

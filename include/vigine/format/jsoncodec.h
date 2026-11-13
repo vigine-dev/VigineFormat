@@ -34,6 +34,8 @@ class VIGINEFORMAT_API IJsonCodec
     [[nodiscard]] virtual DataValue parse(std::string_view text) const = 0;
     // A value of any kind to compact JSON text. Throws std::invalid_argument for a float JSON cannot write (NaN, infinity).
     [[nodiscard]] virtual std::string serialize(const DataValue &root) const = 0;
+    // The same text as serialize, but each invalid UTF-8 sequence in a string is written as U+FFFD instead of throwing.
+    [[nodiscard]] virtual std::string serializeReplacingInvalidUtf8(const DataValue &root) const = 0;
 };
 
 [[nodiscard]] VIGINEFORMAT_API std::unique_ptr<IJsonCodec> createJsonCodec();
