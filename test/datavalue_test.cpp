@@ -136,4 +136,25 @@ VIGINE_TEST(DataValue, SettingAKeyAgainReplacesItAndTablesIgnoreKeyOrder)
     second.set("a", DataValue::integer(9));
     VIGINE_EXPECT_TRUE(first == second);
 }
+
+VIGINE_TEST(DataValue, ChangesANestedValueInPlace)
+{
+    DataValue inner = DataValue::table();
+    inner.set("depth", DataValue::integer(1));
+    DataValue middle = DataValue::table();
+    middle.set("inner", inner);
+    DataValue outer = DataValue::table();
+    outer.set("middle", middle);
+
+    outer.at("middle").at("inner").set("depth", DataValue::integer(2));
+    DataValue *found = outer.at("middle").find("inner");
+    VIGINE_ASSERT_TRUE(found != nullptr);
+    found->set("extra", DataValue::string("added"));
+
+    VIGINE_EXPECT_EQ(outer.at("middle").at("inner").at("depth").asInteger(), std::int64_t{2});
+    VIGINE_EXPECT_EQ(outer.at("middle").at("inner").at("extra").asString(), std::string("added"));
+    VIGINE_EXPECT_EQ(inner.at("depth").asInteger(), std::int64_t{1});
+    VIGINE_EXPECT_THROW((void)outer.at("absent"), std::out_of_range);
+    VIGINE_EXPECT_TRUE(outer.find("absent") == nullptr);
+}
 } // namespace

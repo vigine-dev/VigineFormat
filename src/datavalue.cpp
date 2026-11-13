@@ -134,6 +134,16 @@ const DataValue &DataValue::at(std::string_view key) const
     return *found;
 }
 
+DataValue *DataValue::find(std::string_view key)
+{
+    return const_cast<DataValue *>(std::as_const(*this).find(key));
+}
+
+DataValue &DataValue::at(std::string_view key)
+{
+    return const_cast<DataValue &>(std::as_const(*this).at(key));
+}
+
 void DataValue::set(std::string key, DataValue value)
 {
     require(DataKind::Table);

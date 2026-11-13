@@ -126,6 +126,11 @@ class JsonCodec final : public IJsonCodec
     {
         return toJson(root).dump();
     }
+
+    std::string serializeReplacingInvalidUtf8(const DataValue &root) const override
+    {
+        return toJson(root).dump(-1, ' ', false, Json::error_handler_t::replace);
+    }
 };
 } // namespace
 

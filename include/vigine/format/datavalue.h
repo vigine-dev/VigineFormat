@@ -46,6 +46,9 @@ class VIGINEFORMAT_API DataValue
     [[nodiscard]] const std::vector<std::string> &keys() const;
     [[nodiscard]] const DataValue *find(std::string_view key) const;
     [[nodiscard]] const DataValue &at(std::string_view key) const;
+    // The same lookups for a value that is changed in place.
+    [[nodiscard]] DataValue *find(std::string_view key);
+    [[nodiscard]] DataValue &at(std::string_view key);
     // Sets a key; an existing key takes the new value in its place.
     void set(std::string key, DataValue value);
 
