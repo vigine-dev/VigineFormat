@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <cctype>
 #include <charconv>
+#include <cstdlib>
 #include <cstring>
+#include <system_error>
 
 namespace vigine::format
 {
