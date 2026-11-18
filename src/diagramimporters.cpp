@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cctype>
+#include <cstddef>
 #include <nlohmann/json.hpp>
 #include <set>
 #include <string>
