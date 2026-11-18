@@ -94,12 +94,20 @@ if(NOT Python3_EXECUTABLE)
                         "the build recipe (vigine.build.toml) states it for each system")
 endif()
 set(VIGINEFORMAT_RYML_HEADER ${VIGINEFORMAT_GENERATED_INCLUDE}/ryml/rapidyaml.hpp)
+# The rapidyaml header is made again when any amalgamated source changes, a pointer move included.
+file(GLOB_RECURSE VIGINEFORMAT_RYML_INPUTS CONFIGURE_DEPENDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/rapidyaml/src/*.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/rapidyaml/src/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/rapidyaml/src_extra/*.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/rapidyaml/src_extra/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/rapidyaml/ext/c4core/src/*.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/rapidyaml/ext/c4core/src/*.cpp)
 add_custom_command(
     OUTPUT ${VIGINEFORMAT_RYML_HEADER}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${VIGINEFORMAT_GENERATED_INCLUDE}/ryml
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/external/rapidyaml/tools/amalgamate.py
             ${VIGINEFORMAT_RYML_HEADER} --c4core --fastfloat --stl -e tree
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/external/rapidyaml/tools/amalgamate.py
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/external/rapidyaml/tools/amalgamate.py ${VIGINEFORMAT_RYML_INPUTS}
     VERBATIM)
 add_custom_target(vigineformat_ryml_header DEPENDS ${VIGINEFORMAT_RYML_HEADER})
 add_dependencies(VigineFormat vigineformat_ryml_header)
