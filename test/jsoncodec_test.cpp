@@ -1,6 +1,7 @@
 #include "vigine/format/jsoncodec.h"
 
 #include <cstdint>
+#include <exception>
 #include <limits>
 #include <memory>
 #include <stdexcept>

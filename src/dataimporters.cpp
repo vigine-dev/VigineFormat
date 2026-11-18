@@ -1,7 +1,9 @@
 #include "diagramimporterclasses.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
+#include <cstddef>
 #include <exception>
 #include <functional>
 #include <stdexcept>
