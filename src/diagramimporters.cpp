@@ -1,7 +1,8 @@
-#include "vigine/format/diagramimporters.h"
+#include "diagramimporterclasses.h"
 
 #include <array>
 #include <cctype>
+#include <cstddef>
 #include <nlohmann/json.hpp>
 #include <set>
 #include <string>
@@ -258,7 +259,7 @@ std::optional<DiagramModel> DotImporter::import(std::string_view text) const
         }
     }
 
-    if (model.nodes.empty())
+    if (model.nodes().empty())
     {
         return std::nullopt;
     }
@@ -313,7 +314,7 @@ std::optional<DiagramModel> MermaidImporter::import(std::string_view text) const
         model.addEdge(left.id, right.id, edgeLabel, arrow.directed);
     }
 
-    if (model.nodes.empty())
+    if (model.nodes().empty())
     {
         return std::nullopt;
     }
@@ -429,7 +430,7 @@ std::optional<DiagramModel> GraphMlImporter::import(std::string_view text) const
         cursor = gt + 1;
     }
 
-    if (model.nodes.empty())
+    if (model.nodes().empty())
     {
         return std::nullopt;
     }
@@ -611,7 +612,7 @@ std::optional<DiagramModel> PlantUmlImporter::import(std::string_view text) cons
         }
     }
 
-    if (model.nodes.empty())
+    if (model.nodes().empty())
     {
         return std::nullopt;
     }
@@ -796,7 +797,7 @@ std::optional<DiagramModel> EdgeListImporter::import(std::string_view text) cons
         }
     }
 
-    if (model.nodes.empty())
+    if (model.nodes().empty())
     {
         return std::nullopt;
     }
@@ -825,7 +826,7 @@ std::optional<DiagramModel> JsonTreeImporter::import(std::string_view text) cons
     }
     walkJson(model, root, "n0", truncateLabel(rootLabel), 0, counter);
 
-    if (model.nodes.empty())
+    if (model.nodes().empty())
     {
         return std::nullopt;
     }
@@ -858,7 +859,7 @@ std::optional<DiagramModel> FlameGraphImporter::import(std::string_view text) co
         std::string path;
         for (const std::string_view frame : splitAny(stack, ";"))
         {
-            if (model.nodes.size() >= kFlameMaxNodes)
+            if (model.nodes().size() >= kFlameMaxNodes)
             {
                 break;
             }
@@ -874,7 +875,7 @@ std::optional<DiagramModel> FlameGraphImporter::import(std::string_view text) co
         }
     }
 
-    if (model.nodes.empty())
+    if (model.nodes().empty())
     {
         return std::nullopt;
     }
@@ -1019,7 +1020,7 @@ std::optional<DiagramModel> GraphQlImporter::import(std::string_view text) const
         }
     }
 
-    if (model.nodes.empty())
+    if (model.nodes().empty())
     {
         return std::nullopt;
     }
@@ -1137,7 +1138,7 @@ std::optional<DiagramModel> ProtobufImporter::import(std::string_view text) cons
         }
     }
 
-    if (model.nodes.empty())
+    if (model.nodes().empty())
     {
         return std::nullopt;
     }
@@ -1196,7 +1197,7 @@ std::optional<DiagramModel> SqlErdImporter::import(std::string_view text) const
         }
     }
 
-    if (model.nodes.empty())
+    if (model.nodes().empty())
     {
         return std::nullopt;
     }

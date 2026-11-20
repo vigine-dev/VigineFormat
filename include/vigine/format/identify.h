@@ -1,5 +1,7 @@
 #pragma once
 
+#include "vigine/format/vigineformat_export.h"
+
 #include <cstdint>
 #include <string_view>
 
@@ -34,18 +36,18 @@ enum class KnownFormat : std::uint8_t
     Vox,
 };
 
-[[nodiscard]] std::string_view formatName(KnownFormat format) noexcept;
+[[nodiscard]] VIGINEFORMAT_API std::string_view formatName(KnownFormat format) noexcept;
 
 // Identify by content alone (magic bytes + structural probes). Unknown when
 // nothing matches confidently.
-[[nodiscard]] KnownFormat identifyContent(std::string_view content) noexcept;
+[[nodiscard]] VIGINEFORMAT_API KnownFormat identifyContent(std::string_view content) noexcept;
 
 // Identify by the filename extension alone. Unknown for unmapped extensions.
-[[nodiscard]] KnownFormat identifyExtension(std::string_view fileName) noexcept;
+[[nodiscard]] VIGINEFORMAT_API KnownFormat identifyExtension(std::string_view fileName) noexcept;
 
 // Content first, extension as the tie-breaker: when the probes recognise the
 // bytes, that verdict stands; only an inconclusive probe falls back to the
 // extension hint.
-[[nodiscard]] KnownFormat identify(std::string_view fileName, std::string_view content) noexcept;
+[[nodiscard]] VIGINEFORMAT_API KnownFormat identify(std::string_view fileName, std::string_view content) noexcept;
 
 } // namespace vigine::format

@@ -1,0 +1,94 @@
+[recipe]
+repo = "VigineFormat"
+variants = ["debug", "release"]
+owns = ["pdfio", "tomlplusplus", "json", "rapidyaml", "zlib"]
+
+[[dependency]]
+repo = "pdfio"
+path = "external/pdfio"
+branch = "vigine/main"
+commit = "48b185c650e2e732eed260d63909f4ec68ac9353"
+
+[[dependency]]
+repo = "tomlplusplus"
+path = "external/tomlplusplus"
+branch = "vigine/main"
+commit = "30172438cee64926dc41fdd9c11fb3ba5b2ba9de"
+
+[[dependency]]
+repo = "json"
+path = "external/json"
+branch = "vigine/main"
+commit = "bc889afb4c5bf1c0d8ee29ef35eaaf4c8bef8a5d"
+
+[[dependency]]
+repo = "rapidyaml"
+path = "external/rapidyaml"
+branch = "vigine/main"
+commit = "316583113c1fb010c07f4194168556a1d7227d0a"
+
+[[dependency]]
+repo = "zlib"
+path = "external/zlib"
+branch = "vigine/main"
+commit = "99623ef7097352da7993ba614161fd6a311e046e"
+
+[[dependency]]
+repo = "VigineUnitTest"
+path = "install"
+branch = "main"
+commit = "ab232a65cc611b2a1227eeb7e204afef4140a108"
+
+[settings.common]
+CMAKE_C_VISIBILITY_PRESET = "hidden"
+CMAKE_CXX_VISIBILITY_PRESET = "hidden"
+CMAKE_VISIBILITY_INLINES_HIDDEN = "ON"
+CMAKE_POSITION_INDEPENDENT_CODE = "ON"
+BUILD_SHARED_LIBS = "ON"
+CMAKE_CXX_STANDARD = "23"
+CMAKE_CXX_STANDARD_REQUIRED = "ON"
+CMAKE_CXX_EXTENSIONS = "OFF"
+
+[settings.macos]
+CMAKE_SHARED_LINKER_FLAGS = "-Wl,-dead_strip"
+Python3_EXECUTABLE = "/opt/homebrew/bin/python3"
+
+[settings.windows]
+CMAKE_SHARED_LINKER_FLAGS = "/OPT:REF"
+Python3_EXECUTABLE = "C:/Users/vital/AppData/Local/Programs/Python/Python312/python.exe"
+
+[settings.linux]
+CMAKE_SHARED_LINKER_FLAGS = "-Wl,--exclude-libs,ALL"
+Python3_EXECUTABLE = "/usr/bin/python3"
+
+[[step]]
+id = "configure-posix"
+variant = "both"
+systems = ["macos", "linux"]
+run = "cmake -S {repo_root} -B build/{variant} -G Ninja -DCMAKE_BUILD_TYPE={variant} -DCMAKE_CXX_COMPILER={compiler} -DCMAKE_C_COMPILER=$(dirname {compiler})/clang -DCMAKE_PREFIX_PATH={install} {settings}"
+why = "One build folder per variant; the C compiler is the one beside our C++ compiler, because pdfio and zlib are C; VigineUnitTest is found from the install folder."
+
+[[step]]
+id = "configure-windows"
+variant = "both"
+systems = ["windows"]
+run = "cmake -S {repo_root} -B build/{variant} -G Ninja -DCMAKE_BUILD_TYPE={variant} -DCMAKE_CXX_COMPILER={compiler} -DCMAKE_C_COMPILER={compiler} -DCMAKE_PREFIX_PATH={install} {settings}"
+why = "One build folder per variant; the compiler driver on Windows is one program for C and C++."
+
+[[step]]
+id = "build"
+variant = "both"
+run = "cmake --build build/{variant}"
+why = "Builds the shared library with pdfio, zlib, json, tomlplusplus and rapidyaml compiled in, and its tests."
+
+[[step]]
+id = "test"
+variant = "both"
+run = "ctest --test-dir build/{variant} --output-on-failure --output-junit test-results/ctest.xml"
+why = "A recipe repository runs its tests as a recipe step, so the passport records the run; the JUnit file lands in build/{variant}/test-results."
+
+[[rule]]
+text = "The third-party code lives only inside the shared library; no third-party header or library is installed."
+
+[[rule]]
+text = "On Linux the version script cmake/vigineformat.map is attached by CMakeLists.txt (it needs the source path); the recipe's linker flag states exclude-libs."
